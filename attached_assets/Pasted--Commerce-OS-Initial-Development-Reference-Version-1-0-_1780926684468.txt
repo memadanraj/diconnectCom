@@ -1,0 +1,1279 @@
+# Commerce OS — Initial Development Reference
+
+> Version 1.0 · SaaS Commerce Platform · Shopify + POS + CRM + Analytics
+
+---
+
+## Table of Contents
+
+1. [Project Overview](#1-project-overview)
+2. [Architecture Overview](#2-architecture-overview)
+3. [Tenant & Multi-Tenancy Model](#3-tenant--multi-tenancy-model)
+4. [User Roles & RBAC](#4-user-roles--rbac)
+5. [Microservices Catalogue](#5-microservices-catalogue)
+6. [Database Design](#6-database-design)
+7. [API Design](#7-api-design)
+8. [API Gateway Design](#8-api-gateway-design)
+9. [Event-Driven Architecture (Kafka)](#9-event-driven-architecture-kafka)
+10. [Order Lifecycle](#10-order-lifecycle)
+11. [Inventory & Warehouse Model](#11-inventory--warehouse-model)
+12. [Payment Gateway Integration](#12-payment-gateway-integration)
+13. [POS Offline Sync Strategy](#13-pos-offline-sync-strategy)
+14. [Store Builder Architecture](#14-store-builder-architecture)
+15. [Multi-Tenancy DB Isolation](#15-multi-tenancy-db-isolation)
+16. [Observability Stack](#16-observability-stack)
+17. [CI/CD Pipeline](#17-cicd-pipeline)
+18. [Security Requirements](#18-security-requirements)
+19. [Infrastructure & Deployment](#19-infrastructure--deployment)
+20. [Frontend Applications](#20-frontend-applications)
+21. [Phased Development Plan](#21-phased-development-plan)
+22. [Project Structure](#22-project-structure)
+23. [Non-Functional Requirements](#23-non-functional-requirements)
+24. [Development Conventions](#24-development-conventions)
+
+---
+
+## 1. Project Overview
+
+### Vision
+
+A multi-tenant SaaS commerce platform enabling merchants to:
+
+- Create and manage online stores
+- Manage products, inventory, and orders
+- Accept payments (local + global gateways)
+- Run POS systems (offline-first, Flutter)
+- Manage multiple branches and warehouses
+- Run marketing campaigns and loyalty programs
+- Manage customers (CRM)
+- Track analytics and KPIs
+- Connect logistics providers
+
+**Equivalent to:** Shopify + POS + Inventory + CRM + Marketing + Logistics + Analytics
+
+### Business Model
+
+| Revenue Source | Details |
+|---|---|
+| Subscription plans | Starter, Growth, Business, Enterprise |
+| Transaction fees | Percentage per order |
+| SMS charges | Usage-based billing |
+| Enterprise services | Custom development |
+| Setup charges | Store onboarding |
+| POS hardware | Scanner, printer, cash drawer |
+
+---
+
+## 2. Architecture Overview
+
+```
+Internet
+  ↓
+Cloudflare (CDN, DDoS, WAF)
+  ↓
+Load Balancer (health checks, routing)
+  ↓
+API Gateway (auth, rate limiting, tenant resolution, routing)
+  ↓
+Microservices Layer (16 services)
+  ↓
+Database Layer       Storage Layer        Analytics Layer
+(PostgreSQL, Redis)  (MinIO, Elastic)     (Kafka, aggregations)
+```
+
+### Technology Stack
+
+| Layer | Technology |
+|---|---|
+| API Gateway | Kong (or custom NestJS) |
+| Microservices | Node.js / NestJS |
+| Databases | PostgreSQL (primary), Redis (cache/sessions) |
+| Message bus | Apache Kafka |
+| Search | Elasticsearch |
+| File storage | MinIO → Cloudflare CDN |
+| Container orchestration | Kubernetes (AWS EKS) |
+| Infrastructure | Terraform, Helm |
+| CI/CD | GitHub Actions |
+| Observability | Prometheus, Grafana, Loki, Jaeger, OpenTelemetry |
+
+---
+
+## 3. Tenant & Multi-Tenancy Model
+
+Every merchant is a **Tenant**. All data is scoped by `tenant_id`.
+
+```
+Tenant
+├── Stores          (online storefronts, custom domains)
+├── Warehouses      (stock locations)
+├── Branches        (physical locations linked to warehouses)
+├── Users           (RBAC, 7 roles)
+├── Customers       (CRM, loyalty, segments)
+├── Orders          (9-stage lifecycle)
+├── Inventory       (6 stock states per variant per warehouse)
+├── Themes          (store builder JSON, draft/published)
+└── Domains         (custom per store, resolved via Host header)
+```
+
+### Isolation Strategy
+
+- **Phase 1–5:** Shared tables with `tenant_id` column + PostgreSQL Row Level Security (RLS)
+- **Enterprise tier:** Schema-per-tenant (`search_path` switching)
+- **White-label / Phase 6:** Database-per-tenant (dedicated RDS instance)
+
+### RLS Enforcement (Shared Tables)
+
+```sql
+-- Enable on every table
+ALTER TABLE products ENABLE ROW LEVEL SECURITY;
+
+-- Policy
+CREATE POLICY tenant_isolation ON products
+  USING (tenant_id = current_setting('app.tenant_id')::uuid);
+
+-- Set at start of every transaction (via common-library middleware)
+SET LOCAL app.tenant_id = '<uuid-from-jwt>';
+```
+
+**The `common-library` middleware must inject `tenant_id` from JWT on every request. No microservice queries without it.**
+
+---
+
+## 4. User Roles & RBAC
+
+| Role | Scope | Description |
+|---|---|---|
+| `SUPER_ADMIN` | Platform | Anthropic/internal ops, full access |
+| `TENANT_OWNER` | Tenant | Full access to own tenant |
+| `MANAGER` | Tenant | Orders, inventory, staff, reports |
+| `STAFF` | Store/Branch | POS, orders, limited product view |
+| `CUSTOMER` | Storefront | Own orders, profile, wishlist |
+| `DELIVERY_AGENT` | Shipments | Update shipment status only |
+| `ACCOUNTANT` | Tenant | Reports, payments, invoices (read) |
+
+Role is embedded as a claim in the JWT and injected as `X-User-Role` header by the API Gateway.
+
+---
+
+## 5. Microservices Catalogue
+
+### Phase 1 (MVP)
+
+| Service | Responsibilities | Key Tables |
+|---|---|---|
+| `identity-service` | Auth, JWT, refresh tokens, RBAC | users, roles, permissions |
+| `tenant-service` | Merchant mgmt, subscriptions, plans | tenants, subscriptions, plans |
+| `product-service` | Products, categories, brands, variants | products, categories, variants, attributes |
+| `order-service` | Orders, returns, refunds | orders, order_items, returns |
+| `payment-service` | eSewa, Khalti, FonePay, Stripe, PayPal | payments, transactions, refunds |
+
+### Phase 2
+
+| Service | Responsibilities | Key Tables |
+|---|---|---|
+| `inventory-service` | Stock tracking, warehouses | inventory, warehouses, inventory_transactions |
+| `theme-service` | Store builder, draft/publish | themes, theme_settings |
+| `cart-service` | Cart, wishlist | carts, cart_items, wishlists |
+| `customer-service` | Profiles, addresses | customers, addresses |
+| `shipment-service` | Shipping, tracking, POD | shipments, shipment_events |
+
+### Phase 3–6
+
+| Service | Responsibilities | Key Tables |
+|---|---|---|
+| `pos-service` | Offline POS, receipts, registers | pos_sales, registers, receipts |
+| `marketing-service` | Coupons, campaigns, referrals | coupons, campaigns |
+| `notification-service` | SMS, email, push | notifications, templates, sms_logs |
+| `analytics-service` | Reports, KPIs, aggregations | analytics_events, aggregations |
+| `cms-service` | Pages, blogs | pages, blogs |
+
+---
+
+## 6. Database Design
+
+### Required Composite Indexes
+
+```sql
+-- Products
+CREATE INDEX idx_products_tenant ON products (tenant_id, status, created_at);
+
+-- Orders
+CREATE INDEX idx_orders_tenant ON orders (tenant_id, status, created_at);
+
+-- Inventory
+CREATE INDEX idx_inventory_lookup ON inventory (tenant_id, warehouse_id, variant_id);
+
+-- Customers
+CREATE UNIQUE INDEX idx_customers_email ON customers (tenant_id, email);
+```
+
+### Core Schema Highlights
+
+#### tenants
+```sql
+CREATE TABLE tenants (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name          VARCHAR(255) NOT NULL,
+  slug          VARCHAR(255) UNIQUE NOT NULL,
+  plan          VARCHAR(50) NOT NULL DEFAULT 'starter',
+  status        VARCHAR(50) NOT NULL DEFAULT 'active',
+  created_at    TIMESTAMPTZ DEFAULT now()
+);
+```
+
+#### products
+```sql
+CREATE TABLE products (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id     UUID NOT NULL REFERENCES tenants(id),
+  name          VARCHAR(255) NOT NULL,
+  slug          VARCHAR(255) NOT NULL,
+  description   TEXT,
+  price         NUMERIC(12,2) NOT NULL,
+  sku           VARCHAR(100),
+  barcode       VARCHAR(100),
+  status        VARCHAR(50) DEFAULT 'draft',
+  visibility    VARCHAR(50) DEFAULT 'public',
+  weight        NUMERIC(8,2),
+  tax_class     VARCHAR(50),
+  created_at    TIMESTAMPTZ DEFAULT now(),
+  updated_at    TIMESTAMPTZ DEFAULT now(),
+  UNIQUE(tenant_id, slug)
+);
+```
+
+#### inventory
+```sql
+CREATE TABLE inventory (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id     UUID NOT NULL REFERENCES tenants(id),
+  variant_id    UUID NOT NULL REFERENCES variants(id),
+  warehouse_id  UUID NOT NULL REFERENCES warehouses(id),
+  available     INT NOT NULL DEFAULT 0,
+  reserved      INT NOT NULL DEFAULT 0,  -- incremented on order.confirmed
+  damaged       INT NOT NULL DEFAULT 0,
+  returned      INT NOT NULL DEFAULT 0,
+  lost          INT NOT NULL DEFAULT 0,
+  on_hand       INT GENERATED ALWAYS AS (available + reserved + damaged + returned + lost) STORED,
+  updated_at    TIMESTAMPTZ DEFAULT now(),
+  UNIQUE(tenant_id, variant_id, warehouse_id)
+);
+```
+
+#### inventory_transactions (ledger — never mutate inventory directly)
+```sql
+CREATE TABLE inventory_transactions (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id       UUID NOT NULL REFERENCES tenants(id),
+  inventory_id    UUID NOT NULL REFERENCES inventory(id),
+  warehouse_id    UUID NOT NULL REFERENCES warehouses(id),
+  type            VARCHAR(50) NOT NULL, -- purchase|sale|return|adjustment|transfer|damaged|lost
+  quantity_delta  INT NOT NULL,
+  reference_type  VARCHAR(50),          -- order|return|adjustment|transfer
+  reference_id    UUID,
+  created_by      UUID REFERENCES users(id),
+  created_at      TIMESTAMPTZ DEFAULT now()
+);
+```
+
+#### orders
+```sql
+CREATE TABLE orders (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id       UUID NOT NULL REFERENCES tenants(id),
+  customer_id     UUID REFERENCES customers(id),
+  status          VARCHAR(50) NOT NULL DEFAULT 'pending',
+  -- pending|confirmed|packed|ready_to_ship|shipped|delivered|returned|refunded|cancelled
+  subtotal        NUMERIC(12,2) NOT NULL,
+  discount        NUMERIC(12,2) DEFAULT 0,
+  shipping_fee    NUMERIC(12,2) DEFAULT 0,
+  tax             NUMERIC(12,2) DEFAULT 0,
+  total           NUMERIC(12,2) NOT NULL,
+  currency        VARCHAR(10) DEFAULT 'NPR',
+  notes           TEXT,
+  created_at      TIMESTAMPTZ DEFAULT now(),
+  updated_at      TIMESTAMPTZ DEFAULT now()
+);
+```
+
+### Full Table List
+
+```
+tenants                 users                   roles
+permissions             subscriptions           plans
+products                categories              brands
+attributes              attribute_values        variants
+variant_options         inventory               inventory_transactions
+warehouses              orders                  order_items
+returns                 refunds                 payments
+transactions            customers               addresses
+carts                   cart_items              wishlists
+coupons                 campaigns               notifications
+sms_logs                email_logs              shipments
+tracking_events         pages                   blogs
+themes                  theme_settings          analytics_events
+audit_logs              files                   domains
+branches                pos_sales               registers
+receipts                loyalty_accounts        support_tickets
+ticket_messages         product_reviews         product_questions
+activity_logs           system_settings         feature_flags
+```
+
+---
+
+## 7. API Design
+
+All routes are prefixed `/api/v1/`.
+
+| Route | Service | Auth |
+|---|---|---|
+| `/auth/*` | identity-service | Public (issues JWT) |
+| `/users/*` | identity-service | JWT required |
+| `/tenants/*` | tenant-service | JWT + TENANT_OWNER |
+| `/products/*` | product-service | JWT (write) / Public (read) |
+| `/categories/*` | product-service | JWT (write) / Public (read) |
+| `/orders/*` | order-service | JWT required |
+| `/payments/*` | payment-service | JWT required |
+| `/webhooks/*` | payment-service | Signature verification (no JWT) |
+| `/shipments/*` | shipment-service | JWT required |
+| `/customers/*` | customer-service | JWT required |
+| `/inventory/*` | inventory-service | JWT required |
+| `/coupons/*` | marketing-service | JWT required |
+| `/analytics/*` | analytics-service | JWT + MANAGER/OWNER |
+| `/themes/*` | theme-service | JWT + MANAGER/OWNER |
+| `/cms/*` | cms-service | JWT (write) / Public (read) |
+| `/storefront/public/*` | multiple | No auth, IP rate limit |
+| `/health` | gateway | IP whitelist only |
+
+### Response Envelope
+
+```json
+{
+  "success": true,
+  "data": { },
+  "meta": {
+    "page": 1,
+    "per_page": 20,
+    "total": 150
+  },
+  "error": null
+}
+```
+
+### Error Format
+
+```json
+{
+  "success": false,
+  "data": null,
+  "error": {
+    "code": "ORDER_NOT_FOUND",
+    "message": "Order not found",
+    "details": {}
+  }
+}
+```
+
+---
+
+## 8. API Gateway Design
+
+### Middleware Pipeline (executes in order on every request)
+
+```
+1. TLS termination + Cloudflare proxy
+   └── HTTPS enforced, mTLS for internal service-to-service
+
+2. Request ID injection
+   └── X-Request-ID: UUIDv7 — generated here, propagated to all upstream services
+
+3. Auth middleware
+   └── Verify JWT signature
+   └── Extract tenant_id, user_id, role, plan from claims
+   └── Inject: X-Tenant-ID, X-User-ID, X-User-Role, X-Tenant-Plan headers
+   └── Return 401 if invalid or expired
+
+4. Tenant resolution
+   └── If storefront: resolve tenant from Host header → Redis lookup → inject X-Tenant-ID
+   └── If dashboard/API: tenant_id from JWT claim
+
+5. Rate limiting (Redis sliding window)
+   └── Starter:    100 req/min
+   └── Growth:     500 req/min
+   └── Business:  2000 req/min
+   └── Enterprise: unlimited
+   └── Return 429 on breach with Retry-After header
+
+6. Route + proxy
+   └── Strip /api/v1 prefix
+   └── Forward to upstream service with injected headers
+```
+
+### Bypass Rules
+
+```
+/webhooks/*          → skip JWT, verify gateway HMAC signature instead
+/storefront/public/* → skip JWT, rate-limit by IP only, resolve tenant from Host
+/auth/login          → skip JWT (unauthenticated endpoint)
+/auth/refresh        → skip JWT (uses refresh token cookie)
+/health, /metrics    → IP whitelist to monitoring subnet only
+```
+
+### JWT Payload Structure
+
+```json
+{
+  "sub": "user-uuid",
+  "tenant_id": "tenant-uuid",
+  "role": "MANAGER",
+  "plan": "growth",
+  "iat": 1700000000,
+  "exp": 1700003600
+}
+```
+
+---
+
+## 9. Event-Driven Architecture (Kafka)
+
+### Topic Naming Convention
+
+`{domain}.{event}` — e.g. `order.confirmed`, `payment.success`
+
+### Topic → Consumer Matrix
+
+| Topic | Producers | Consumers |
+|---|---|---|
+| `order.created` | order-service | notification-service, analytics-service |
+| `order.confirmed` | order-service | inventory-service (reserve stock), notification-service, analytics-service |
+| `order.shipped` | order-service, shipment-service | notification-service, analytics-service |
+| `order.delivered` | shipment-service | notification-service, analytics-service, marketing-service (loyalty) |
+| `payment.success` | payment-service | order-service (confirm order), notification-service, analytics-service |
+| `payment.failed` | payment-service | order-service (release reservation), notification-service |
+| `product.created` | product-service | search-index (Elasticsearch), analytics-service |
+| `product.updated` | product-service | search-index, analytics-service, theme-service (cache bust) |
+| `inventory.changed` | inventory-service | notification-service (low stock alert), marketing-service, analytics-service |
+| `customer.created` | customer-service | marketing-service, analytics-service |
+| `notification.send` | any service | notification-service |
+
+### Implementation Rules
+
+- Every consumer must have a **dead letter queue** topic (e.g. `order.confirmed.dlq`)
+- **Exactly-once semantics** for: `payment.success`, `payment.failed` (financial events)
+- **At-least-once + idempotent consumers** for: analytics, notifications, search indexing
+- Use **schema registry** (Confluent) from day one — version all event schemas
+- Consumer group naming: `{service-name}-{topic}` e.g. `inventory-service-order.confirmed`
+
+### Dead Letter Queue Pattern
+
+```
+order.confirmed
+  → inventory-service (consumer group: inventory-service-order.confirmed)
+      on failure after 3 retries → order.confirmed.dlq
+          → dlq-processor (alert + manual review)
+```
+
+---
+
+## 10. Order Lifecycle
+
+```
+PENDING          → payment initiated, stock NOT yet reserved
+  ↓ (payment.success)
+CONFIRMED        → payment verified, stock RESERVED (not decremented)
+  ↓ (merchant action)
+PACKED           → items picked, stock DECREMENTED, label generated
+  ↓ (courier assigned)
+READY TO SHIP    → courier assigned, awaiting pickup
+  ↓ (courier pickup)
+SHIPPED          → in transit, live tracking active
+  ↓ (delivery confirmed)
+DELIVERED        → POD captured, loyalty points added, stock reservation cleared
+```
+
+### Branch Flows
+
+```
+PENDING/CONFIRMED → CANCELLED    (auto-refund triggered if paid)
+DELIVERED → RETURNED             (within return window, configurable per tenant)
+RETURNED → REFUNDED              (gateway refund API called)
+```
+
+### Inventory Reservation Rules
+
+- `order.confirmed` → `inventory.reserved += quantity` (never touch `available`)
+- `order.packed` → `inventory.available -= quantity`, `inventory.reserved -= quantity`
+- `order.cancelled` → `inventory.reserved -= quantity` (release reservation)
+- `order.returned` → `inventory.returned += quantity` (pending inspection)
+
+### Return Window
+
+Configurable per tenant in `system_settings`. Default: 7 days after delivery. Enforced at API layer.
+
+---
+
+## 11. Inventory & Warehouse Model
+
+### Stock States
+
+| State | Meaning |
+|---|---|
+| `available` | Sellable stock — shown to customers |
+| `reserved` | Held for confirmed orders not yet packed |
+| `damaged` | Unusable, pending write-off |
+| `returned` | Returned by customer, pending inspection |
+| `lost` | Written off (theft, shrinkage) |
+| `on_hand` | Computed: sum of all above |
+
+### Inventory Movement Types
+
+`purchase` · `sale` · `return` · `adjustment` · `transfer` · `damaged` · `lost`
+
+### Warehouse Transfer
+
+Two transaction rows per transfer:
+- Source warehouse: `quantity_delta = -N`, `type = transfer`
+- Destination warehouse: `quantity_delta = +N`, `type = transfer`
+- Both rows share the same `reference_id` (transfer UUID)
+
+### Branch → Warehouse Relationship
+
+One branch draws from one warehouse. One warehouse can serve multiple branches. Filter `inventory` by `warehouse_id` for per-branch stock visibility.
+
+---
+
+## 12. Payment Gateway Integration
+
+### Supported Gateways
+
+| Gateway | Market | Flow Type |
+|---|---|---|
+| eSewa | Nepal | Redirect (user leaves site, returns with token) |
+| Khalti | Nepal | Redirect |
+| FonePay | Nepal | QR generation (merchant-side) |
+| ConnectIPS | Nepal | Redirect |
+| Stripe | Global | Intent API + webhook |
+| PayPal | Global | Order API + webhook |
+
+### Payment Flow
+
+```
+1. Customer submits checkout
+2. Payment Service creates payment record (status: pending)
+3. Route to gateway → redirect URL or QR returned to frontend
+4. Customer completes payment on gateway
+5. Gateway calls webhook → Payment Service /webhooks/{gateway}
+6. Webhook handler verifies signature (HMAC) → parses event
+7. On success:
+   - Update payment record (status: paid)
+   - Publish payment.success to Kafka
+   - order-service consumes → confirms order
+8. On failure:
+   - Update payment record (status: failed)
+   - Publish payment.failed to Kafka
+   - order-service consumes → releases stock reservation
+```
+
+### Webhook Security
+
+Each gateway uses a different verification method:
+
+| Gateway | Method |
+|---|---|
+| eSewa | HMAC-SHA256 of payload with secret key |
+| Khalti | Token-based verification via Khalti API |
+| Stripe | `Stripe-Signature` header HMAC |
+| PayPal | OAuth token verification |
+
+**Never forward a webhook to the Payment Service without gateway-level signature verification at the API Gateway.**
+
+### Idempotency
+
+Store gateway `transaction_id` in `payments` table with a UNIQUE constraint. On duplicate webhook delivery: return `200 OK`, skip processing silently.
+
+### Refund Abstraction
+
+```typescript
+interface RefundProvider {
+  initiateRefund(transactionId: string, amount: number, reason: string): Promise<RefundResult>;
+  getRefundStatus(refundId: string): Promise<RefundStatus>;
+}
+```
+
+Each gateway implements this interface. The Order Service calls `PaymentService.refund()` — never a gateway directly.
+
+---
+
+## 13. POS Offline Sync Strategy
+
+### Local Storage (Flutter SQLite)
+
+```sql
+-- Local device schema
+CREATE TABLE local_products (
+  id TEXT PRIMARY KEY,  -- UUID from server
+  tenant_id TEXT,
+  name TEXT,
+  price REAL,
+  barcode TEXT,
+  updated_at TEXT
+);
+
+CREATE TABLE local_inventory (
+  variant_id TEXT,
+  warehouse_id TEXT,
+  available INTEGER,
+  last_synced_at TEXT,
+  PRIMARY KEY (variant_id, warehouse_id)
+);
+
+CREATE TABLE pos_sales (
+  id TEXT PRIMARY KEY,          -- UUIDv7 — client generated
+  tenant_id TEXT,
+  items_json TEXT,              -- JSON array of line items
+  total REAL,
+  payment_method TEXT,
+  status TEXT DEFAULT 'pending_sync',
+  created_at TEXT,
+  synced_at TEXT
+);
+
+CREATE TABLE outbox (
+  id TEXT PRIMARY KEY,          -- UUIDv7
+  entity_type TEXT,             -- pos_sale|return|cash_in|cash_out
+  payload_json TEXT,
+  created_at TEXT,
+  attempts INTEGER DEFAULT 0,
+  last_attempt_at TEXT,
+  error TEXT
+);
+```
+
+### Sync Modes
+
+**Online:** Initial full sync on app start, then WebSocket/SSE delta pushes from server.
+
+**Offline:** All mutations write to `outbox` first, then to local SQLite. UUIDv7 for all client-generated IDs (time-ordered, no collision).
+
+### Reconnect Sync Process
+
+```
+1. Drain outbox in created_at order (oldest first)
+2. POST each entry to /api/v1/pos/sync
+3. Server processes with idempotency (keyed on client UUID)
+4. On success: mark outbox entry synced
+5. On failure: exponential backoff (1s → 2s → 4s → … max 5min), max 10 retries → DLQ alert
+6. After outbox drained: pull fresh delta snapshot (updated_at > last_synced_at)
+7. Clear fully-synced outbox entries
+```
+
+### Conflict Resolution
+
+| Conflict Type | Resolution |
+|---|---|
+| Inventory (sold offline, also sold online) | **Server wins.** Local sale accepted, cashier alerted, handled operationally |
+| Sale (duplicate UUID) | **Idempotent upsert** — second delivery ignored |
+| Price (offline price ≠ current server price > 5%) | **Flag for manager review** — do not auto-accept |
+| Product update | **Server wins** — pull fresh on reconnect |
+
+### Critical Rules
+
+- **Never write to local state without an outbox entry first** — or mutations are silently lost
+- **Delta sync only after initial snapshot** — pull `updated_at > last_synced_at`, never full sync on reconnect
+- **Use UUIDv7** for all client-generated IDs (not UUIDv4 — ordering is critical)
+- **Exponential backoff with jitter** on sync retries — cap at 5 min
+
+---
+
+## 14. Store Builder Architecture
+
+### Theme JSON Schema
+
+```json
+{
+  "tokens": {
+    "primary_color": "#E85D24",
+    "secondary_color": "#1D9E75",
+    "font_heading": "Inter",
+    "font_body": "Inter",
+    "border_radius": "8px"
+  },
+  "sections": [
+    {
+      "id": "uuid-v7",
+      "type": "hero",
+      "order": 1,
+      "props": {
+        "title": "Welcome to our store",
+        "subtitle": "Shop the latest collection",
+        "image_url": "https://cdn.example.com/hero.jpg",
+        "cta_text": "Shop Now",
+        "cta_url": "/collections/all"
+      }
+    },
+    {
+      "id": "uuid-v7",
+      "type": "product_grid",
+      "order": 2,
+      "props": {
+        "collection_id": "uuid",
+        "columns": 3,
+        "limit": 12,
+        "show_price": true
+      }
+    }
+  ],
+  "settings": {
+    "show_announcement_bar": true,
+    "announcement_text": "Free shipping over Rs 999",
+    "favicon_url": "https://cdn.example.com/favicon.ico"
+  }
+}
+```
+
+### Available Section Types
+
+`hero` · `banner` · `product_grid` · `featured_products` · `collections` · `faq` · `testimonials` · `blog` · `video` · `newsletter` · `countdown` · `image_gallery` · `carousel`
+
+### Draft vs Published
+
+- Two JSON blobs per tenant: `draft` and `published`
+- Merchants edit `draft` freely — no live impact
+- Publish: atomically swaps `draft` → `published`, snapshots old `published` for rollback
+- Redis cache keyed by `tenant_id + domain`, TTL 60s, invalidated on publish
+
+### Storefront Rendering (Next.js SSR)
+
+```typescript
+// Per request:
+// 1. Resolve tenant from Host header (Redis cache)
+// 2. Fetch published theme JSON
+// 3. Map section.type → React component
+// 4. Render section tree with props
+// 5. Cache rendered HTML in Redis (TTL 60s)
+
+const componentMap: Record<string, React.FC> = {
+  hero: HeroSection,
+  product_grid: ProductGridSection,
+  banner: BannerSection,
+  // ...
+};
+
+export async function getServerSideProps({ req }) {
+  const tenant = await resolveTenant(req.headers.host);
+  const theme = await getPublishedTheme(tenant.id);
+  return { props: { theme } };
+}
+```
+
+---
+
+## 15. Multi-Tenancy DB Isolation
+
+### Strategy by Tier
+
+| Tier | Strategy | When |
+|---|---|---|
+| Starter / Growth / Business | Shared tables + RLS | Phase 1–5, up to 10,000+ tenants |
+| Enterprise | Schema per tenant (`search_path`) | ~100 tenant limit, strong isolation |
+| White-label | Database per tenant (dedicated RDS) | Phase 6, maximum isolation |
+
+### RLS Setup (Recommended — Phase 1–5)
+
+```sql
+-- 1. Enable on every table
+ALTER TABLE {table} ENABLE ROW LEVEL SECURITY;
+ALTER TABLE {table} FORCE ROW LEVEL SECURITY;
+
+-- 2. Policy (using session variable set by app)
+CREATE POLICY tenant_isolation ON {table}
+  USING (tenant_id = current_setting('app.tenant_id')::uuid);
+
+-- 3. App middleware (common-library) — runs on every request
+-- Extracts tenant_id from JWT, sets session variable
+await db.query("SET LOCAL app.tenant_id = $1", [tenantId]);
+```
+
+### common-library Middleware (mandatory)
+
+```typescript
+// Every microservice must use this middleware
+// It must run before any database query
+
+export async function tenantMiddleware(req, res, next) {
+  const tenantId = req.headers['x-tenant-id']; // injected by API Gateway
+  if (!tenantId) return res.status(400).json({ error: 'Missing tenant context' });
+
+  await db.query('SET LOCAL app.tenant_id = $1', [tenantId]);
+  req.tenantId = tenantId;
+  next();
+}
+```
+
+---
+
+## 16. Observability Stack
+
+### Three Pillars
+
+| Pillar | Tool | Purpose |
+|---|---|---|
+| Metrics | Prometheus + Grafana | RED metrics (Rate, Errors, Duration) per service/route |
+| Logs | Loki + Promtail + Elasticsearch | Operational tailing + full-text search |
+| Traces | OpenTelemetry + Jaeger | Request traces across services |
+
+### common-library Instrumentation
+
+Every service gets the following for free by importing `common-library`:
+
+```typescript
+// Metrics — Prometheus middleware auto-exposed at /metrics
+// Measures: request rate, error rate, p50/p95/p99 latency per route
+
+// Logger — structured JSON, required fields on every log line
+logger.info('Order confirmed', {
+  tenant_id: req.tenantId,
+  trace_id: req.traceId,
+  request_id: req.requestId,
+  service: 'order-service',
+  order_id: order.id,
+  duration_ms: elapsed,
+});
+
+// Tracer — OTel SDK auto-instruments HTTP and DB calls
+// W3C trace context propagated via traceparent header
+```
+
+### Trace Sampling
+
+- 100% sampling on error spans
+- 1% sampling on normal traffic
+- Head-based sampling in OTel Collector with tail-based override for errors
+
+### Alert Rules (minimum viable on-call)
+
+```yaml
+# Alert: payment service elevated errors
+- alert: PaymentServiceErrorRate
+  expr: rate(http_requests_total{service="payment-service",status=~"5.."}[2m]) > 0.005
+  for: 2m
+  labels: { severity: critical }
+  annotations: { summary: "Payment service error rate > 0.5%" }
+
+# Alert: order service slow
+- alert: OrderServiceLatency
+  expr: histogram_quantile(0.99, rate(http_request_duration_seconds_bucket{service="order-service"}[5m])) > 0.5
+  for: 5m
+  labels: { severity: warning }
+
+# Alert: Kafka consumer lag
+- alert: KafkaConsumerLag
+  expr: kafka_consumer_group_lag > 10000
+  for: 2m
+  labels: { severity: warning }
+
+# Alert: pod crash looping
+- alert: PodCrashLooping
+  expr: rate(kube_pod_container_status_restarts_total[15m]) > 0
+  for: 5m
+  labels: { severity: critical }
+```
+
+### Priority Dashboards
+
+1. **Platform health** — error rate, latency p50/p95/p99, pod status per service
+2. **Business metrics** — GMV, orders/min, payment success rate, active sessions
+3. **Tenant usage** — API calls, SMS quota, storage, order volume per tenant (feeds billing)
+4. **Kafka health** — consumer lag per topic, throughput, partition distribution
+
+---
+
+## 17. CI/CD Pipeline
+
+### Workflow Triggers
+
+```yaml
+# Each service has its own workflow
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'backend/order-service/**'
+      - 'backend/common-library/**'  # triggers rebuild of dependents
+  pull_request:
+    paths:
+      - 'backend/order-service/**'
+```
+
+### Pipeline Stages
+
+```
+1. CI (on every PR)
+   ├── Lint (ESLint, Prettier)
+   ├── Unit tests (Jest/Vitest)
+   ├── Integration tests (Testcontainers — real Postgres + Redis)
+   └── Security scan (Trivy for images, OWASP for deps)
+
+2. Build (on merge to main)
+   └── Docker build → tag with git SHA + semver → push to ECR
+
+3. Deploy: Dev
+   └── Automatic on merge, Helm upgrade, health check
+
+4. Deploy: Staging
+   └── Automatic after Dev, smoke test suite runs
+
+5. Deploy: Production
+   └── Manual approval gate (GitHub Environment)
+   └── Helm rolling update → Prometheus error rate check
+   └── Auto-rollback if error rate > 1% for 2 min
+```
+
+### Image Tagging
+
+```
+sha-a3f9c2b        → immutable, used in Helm values for exact deploys
+v1.4.2             → semver, human-readable release tracking
+latest             → staging only, never production
+```
+
+### Helm Chart Structure
+
+```
+infra/helm/
+  commerce-os/          # shared base chart
+    Chart.yaml
+    values.yaml         # defaults
+  services/
+    order-service/
+      values.yaml       # overrides (image, replicas, env, resources)
+    payment-service/
+      values.yaml
+    ...
+```
+
+---
+
+## 18. Security Requirements
+
+| Requirement | Implementation |
+|---|---|
+| Authentication | JWT (access token 1h) + refresh token (30d, HTTP-only cookie) |
+| Token rotation | Refresh token rotated on every use |
+| MFA | TOTP (Google Authenticator) for TENANT_OWNER and MANAGER |
+| Rate limiting | Per tenant per route via Redis sliding window in API Gateway |
+| Audit logs | Every write operation logged to `audit_logs` with user, timestamp, before/after |
+| IP whitelisting | `/health`, `/metrics` endpoints restricted to monitoring subnet |
+| Encryption at rest | AWS RDS encryption, S3/MinIO server-side encryption |
+| Encryption in transit | TLS 1.3 externally, mTLS internally (Istio service mesh) |
+| Secrets management | AWS Secrets Manager, never in env files or source code |
+| Dependency scanning | Trivy in CI on every build |
+| RBAC | Role embedded in JWT, enforced at API Gateway + service layer |
+| Webhook security | HMAC signature verification at API Gateway before forwarding |
+| SQL injection | Parameterised queries only — no string concatenation in SQL |
+| XSS | Content-Security-Policy headers, output encoding in storefront |
+
+---
+
+## 19. Infrastructure & Deployment
+
+### Production Stack (AWS)
+
+```
+AWS EKS               → Kubernetes cluster (microservices)
+AWS RDS PostgreSQL    → Primary database (Multi-AZ)
+AWS ElastiCache       → Redis cluster
+AWS MSK               → Managed Kafka
+AWS S3 + MinIO        → File storage
+Cloudflare            → CDN, DDoS, WAF, DNS
+```
+
+### Kubernetes Namespace Structure
+
+```
+namespaces:
+  commerce-core       # identity, tenant, product, order, payment
+  commerce-ops        # inventory, shipment, customer, cart
+  commerce-marketing  # marketing, notification, cms, theme
+  commerce-analytics  # analytics, data pipeline
+  commerce-pos        # pos-service
+  monitoring          # prometheus, grafana, loki, jaeger
+  ingress             # ingress-nginx, cert-manager
+```
+
+### Resource Targets (per service pod)
+
+```yaml
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+```
+
+### Non-Functional Targets
+
+| Metric | Target |
+|---|---|
+| Availability | 99.9% (< 8.7h downtime/year) |
+| API response time | p99 < 300ms |
+| Scalability | 10,000+ tenants |
+| Concurrent users | 100,000+ |
+| Orders per day | 1,000,000+ |
+
+---
+
+## 20. Frontend Applications
+
+| Application | Tech | Notes |
+|---|---|---|
+| Landing website | Next.js | Marketing pages, SEO |
+| Merchant dashboard | React + TypeScript | SPA, Vite, Tanstack Query |
+| Storefront | Next.js | SSR enabled, theme-driven |
+| POS application | Flutter | Offline-first, SQLite |
+| Customer mobile app | Flutter | Customer-facing |
+
+### Storefront Domain Resolution
+
+```
+Custom domain (e.g. shop.merchant.com)
+  → Cloudflare DNS → API Gateway
+  → Gateway reads Host header
+  → Redis lookup: domain → tenant_id
+  → Inject X-Tenant-ID header
+  → Route to storefront Next.js service
+```
+
+---
+
+## 21. Phased Development Plan
+
+### Phase 1 — MVP (target: 8–10 weeks)
+
+**Goal:** Working multi-tenant storefront + orders + payments
+
+- identity-service (auth, JWT, RBAC)
+- tenant-service (merchant registration, plan management)
+- product-service (products, categories, variants)
+- order-service (create order, lifecycle management)
+- payment-service (eSewa + Khalti integration, webhooks)
+- Merchant dashboard (product + order management)
+- Storefront (theme rendering — fixed template, no builder yet)
+- API Gateway (Kong setup, middleware pipeline)
+- Kafka (topics: order.*, payment.*)
+- PostgreSQL with RLS
+- Basic CI/CD (GitHub Actions → EKS dev)
+
+**MVP Launch criteria:**
+- Merchant can register, add products, go live
+- Customer can browse, add to cart, checkout with eSewa/Khalti
+- Merchant receives order notification
+- Order status updates work end-to-end
+
+### Phase 2 — Inventory + Store Builder (6–8 weeks)
+
+- inventory-service (stock tracking, warehouses, transactions ledger)
+- theme-service (store builder, draft/publish, JSON schema)
+- cart-service (persistent cart, wishlist)
+- customer-service (profiles, addresses)
+- shipment-service (create shipment, tracking)
+- Custom domains (Cloudflare DNS API integration)
+- Stripe + PayPal integration
+- Elasticsearch (product search)
+
+### Phase 3 — POS + Branches (6–8 weeks)
+
+- pos-service (registers, receipts, cash management)
+- Flutter POS app (offline-first, SQLite outbox)
+- Branch and warehouse management
+- POS ↔ inventory sync
+- Multi-branch reporting
+
+### Phase 4 — CRM + Marketing (4–6 weeks)
+
+- marketing-service (coupons, campaigns, flash sales)
+- CRM features (segments, tags, notes, communication history)
+- Loyalty points system
+- Referral program
+- Email marketing (SendGrid/SES integration)
+- SMS marketing (Sparrow SMS / Twilio)
+- Push notifications (FCM)
+
+### Phase 5 — Analytics (4–6 weeks)
+
+- analytics-service (event ingestion, aggregations)
+- Grafana business dashboards (GMV, orders, customers, retention)
+- Tenant usage dashboard (feeds billing)
+- Data warehouse (AWS Redshift or ClickHouse)
+- Exportable reports (CSV, PDF)
+
+### Phase 6 — Enterprise (ongoing)
+
+- Enterprise API (public API + API keys)
+- White-label platform (DB-per-tenant, custom branding)
+- Marketplace (third-party app integrations)
+- Advanced analytics (cohort analysis, LTV)
+
+---
+
+## 22. Project Structure
+
+```
+commerce-os/
+├── backend/
+│   ├── common-library/         # shared: middleware, logger, RLS, OTel, types
+│   ├── gateway-service/        # Kong config or custom NestJS gateway
+│   ├── identity-service/
+│   ├── tenant-service/
+│   ├── product-service/
+│   ├── inventory-service/
+│   ├── order-service/
+│   ├── payment-service/
+│   ├── shipment-service/
+│   ├── customer-service/
+│   ├── cart-service/
+│   ├── marketing-service/
+│   ├── analytics-service/
+│   ├── notification-service/
+│   ├── cms-service/
+│   ├── theme-service/
+│   └── pos-service/
+│
+├── frontend/
+│   ├── landing/                # Next.js marketing site
+│   ├── dashboard/              # React merchant dashboard
+│   ├── storefront/             # Next.js SSR storefront
+│   ├── mobile-app/             # Flutter customer app
+│   └── pos-app/                # Flutter offline POS
+│
+├── infra/
+│   ├── docker/
+│   │   └── docker-compose.yml  # local dev: all services + deps
+│   ├── kubernetes/
+│   │   └── namespaces/
+│   ├── helm/
+│   │   ├── commerce-os/        # base chart
+│   │   └── services/           # per-service values.yaml
+│   ├── terraform/
+│   │   ├── eks/
+│   │   ├── rds/
+│   │   ├── msk/
+│   │   └── networking/
+│   └── github-actions/
+│       └── workflows/
+│
+└── docs/
+    ├── COMMERCE_OS_DEV.md      # this document
+    ├── srs/                    # software requirements spec
+    ├── architecture/           # ADRs (architecture decision records)
+    ├── erd/                    # database diagrams
+    ├── api/                    # OpenAPI specs per service
+    └── runbooks/               # incident response procedures
+```
+
+### Service Structure (per microservice)
+
+```
+{service-name}/
+├── src/
+│   ├── main.ts
+│   ├── app.module.ts
+│   ├── {domain}/
+│   │   ├── {domain}.controller.ts
+│   │   ├── {domain}.service.ts
+│   │   ├── {domain}.repository.ts
+│   │   ├── {domain}.module.ts
+│   │   ├── dto/
+│   │   └── entities/
+│   └── common/               # re-exports from common-library
+├── test/
+│   ├── unit/
+│   └── integration/          # Testcontainers
+├── migrations/               # SQL migration files
+├── Dockerfile
+├── package.json
+└── values.yaml               # Helm overrides
+```
+
+---
+
+## 23. Non-Functional Requirements
+
+| Category | Requirement |
+|---|---|
+| Availability | 99.9% uptime SLA |
+| Latency | API p99 < 300ms; storefront TTFB < 500ms |
+| Throughput | 1,000,000 orders/day; 100,000 concurrent users |
+| Scalability | 10,000+ tenants; horizontal pod autoscaling |
+| Data durability | RDS Multi-AZ; daily backups; PITR 7 days |
+| Recovery | RTO < 1h; RPO < 5min for production database |
+| Compliance | Audit logs retained 2 years; GDPR-ready data export/delete |
+
+---
+
+## 24. Development Conventions
+
+### Commit Convention
+
+```
+feat(order-service): add return window validation
+fix(payment-service): handle duplicate eSewa webhooks
+chore(common-library): upgrade OTel SDK to 1.18
+docs: update order lifecycle in COMMERCE_OS_DEV.md
+```
+
+### Environment Variables
+
+Never in source code. Always via:
+- Local: `.env.local` (gitignored)
+- Staging/Production: AWS Secrets Manager, injected as K8s secrets
+
+Required per service:
+```
+DATABASE_URL
+REDIS_URL
+KAFKA_BROKERS
+JWT_SECRET
+SERVICE_NAME
+LOG_LEVEL
+OTEL_EXPORTER_OTLP_ENDPOINT
+```
+
+### Migration Convention
+
+```
+migrations/
+  001_create_tenants.sql
+  002_create_users.sql
+  003_create_products.sql
+  ...
+```
+
+Run with: `db-migrate up` (or `node-pg-migrate`)
+Never edit a migration that has been applied to production. Always add a new migration.
+
+### API Versioning
+
+All routes under `/api/v1/`. When breaking changes are needed, add `/api/v2/` routes and maintain v1 for one major release cycle.
+
+### Feature Flags
+
+Use `feature_flags` table. Check in common-library before enabling new behaviour per tenant. Allows gradual rollout without deploys.
+
+```sql
+CREATE TABLE feature_flags (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id   UUID REFERENCES tenants(id),  -- NULL = platform-wide
+  flag        VARCHAR(100) NOT NULL,
+  enabled     BOOLEAN DEFAULT false,
+  created_at  TIMESTAMPTZ DEFAULT now()
+);
+```
+
+---
+
+*End of Commerce OS Initial Development Reference — v1.0*
+
+*Generated from masterplan + architecture deep-dives covering: system overview, multi-tenancy, microservices, database design, API gateway, Kafka event topology, order lifecycle, inventory model, payment gateways, POS offline sync, store builder, DB isolation patterns, observability stack, and CI/CD pipeline.*
