@@ -9,41 +9,71 @@ import {
   Settings,
   LogOut,
   Store,
-  Menu
+  Menu,
+  Users,
+  Warehouse,
+  Truck,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 
-const NAV_ITEMS = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/products", label: "Products", icon: Package },
-  { href: "/categories", label: "Categories", icon: Tags },
-  { href: "/orders", label: "Orders", icon: ShoppingCart },
-  { href: "/settings", label: "Settings", icon: Settings },
+const NAV_SECTIONS = [
+  {
+    label: "Commerce",
+    items: [
+      { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+      { href: "/orders", label: "Orders", icon: ShoppingCart },
+      { href: "/products", label: "Products", icon: Package },
+      { href: "/categories", label: "Categories", icon: Tags },
+    ],
+  },
+  {
+    label: "Operations",
+    items: [
+      { href: "/customers", label: "Customers", icon: Users },
+      { href: "/inventory", label: "Inventory", icon: Warehouse },
+      { href: "/shipments", label: "Shipments", icon: Truck },
+    ],
+  },
+  {
+    label: "Store",
+    items: [
+      { href: "/settings", label: "Settings", icon: Settings },
+    ],
+  },
 ];
 
 function NavLinks() {
   const [location] = useLocation();
   return (
-    <div className="flex flex-col gap-2">
-      {NAV_ITEMS.map((item) => {
-        const active = location === item.href || (item.href !== "/dashboard" && location.startsWith(item.href));
-        return (
-          <Link key={item.href} href={item.href}>
-            <span
-              className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors cursor-pointer ${
-                active
-                  ? "bg-primary/10 text-primary"
-                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
-              }`}
-            >
-              <item.icon className="h-4 w-4" />
-              {item.label}
-            </span>
-          </Link>
-        );
-      })}
+    <div className="flex flex-col gap-5">
+      {NAV_SECTIONS.map((section) => (
+        <div key={section.label}>
+          <p className="mb-1.5 px-3 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60">
+            {section.label}
+          </p>
+          <div className="flex flex-col gap-0.5">
+            {section.items.map((item) => {
+              const active = location === item.href || (item.href !== "/dashboard" && location.startsWith(item.href));
+              return (
+                <Link key={item.href} href={item.href}>
+                  <span
+                    className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors cursor-pointer ${
+                      active
+                        ? "bg-primary/10 text-primary"
+                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                    }`}
+                  >
+                    <item.icon className="h-4 w-4" />
+                    {item.label}
+                  </span>
+                </Link>
+              );
+            })}
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
@@ -60,7 +90,7 @@ export function Layout({ children }: { children: ReactNode }) {
   return (
     <div className="flex min-h-[100dvh] w-full bg-muted/30">
       {/* Desktop Sidebar */}
-      <aside className="hidden w-64 flex-col border-r bg-card md:flex">
+      <aside className="hidden w-60 flex-col border-r bg-card md:flex">
         <div className="flex h-16 flex-shrink-0 items-center border-b px-6">
           <Link href="/dashboard" className="flex items-center gap-2 font-bold text-primary cursor-pointer">
             <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary text-primary-foreground">
@@ -69,7 +99,7 @@ export function Layout({ children }: { children: ReactNode }) {
             <span>Commerce OS</span>
           </Link>
         </div>
-        <div className="flex-1 overflow-auto py-6 px-4">
+        <div className="flex-1 overflow-auto py-5 px-3">
           <NavLinks />
         </div>
         <div className="border-t p-4">
@@ -108,14 +138,14 @@ export function Layout({ children }: { children: ReactNode }) {
                 <span className="sr-only">Toggle navigation menu</span>
               </Button>
             </SheetTrigger>
-            <SheetContent side="left" className="w-72 flex flex-col p-0">
+            <SheetContent side="left" className="w-64 flex flex-col p-0">
               <div className="flex h-16 items-center border-b px-6">
                 <span className="font-bold text-primary flex items-center gap-2">
                   <Store className="h-5 w-5" />
                   Commerce OS
                 </span>
               </div>
-              <div className="flex-1 overflow-auto py-6 px-4">
+              <div className="flex-1 overflow-auto py-5 px-3">
                 <NavLinks />
               </div>
               <div className="border-t p-4">

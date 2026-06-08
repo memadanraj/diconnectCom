@@ -16,11 +16,19 @@ import Categories from "@/pages/categories";
 import OrdersList from "@/pages/orders";
 import OrderDetail from "@/pages/order-detail";
 import Settings from "@/pages/settings";
+import CustomersPage from "@/pages/customers";
+import CustomerDetailPage from "@/pages/customer-detail";
+import InventoryPage from "@/pages/inventory";
+import ShipmentsPage from "@/pages/shipments";
+import ShipmentDetailPage from "@/pages/shipment-detail";
 
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      retry: 1,
+      retry: (failureCount, error: any) => {
+        if (error?.status === 401) return false;
+        return failureCount < 1;
+      },
       refetchOnWindowFocus: false,
     },
   },
@@ -38,6 +46,11 @@ function ProtectedRoutes() {
           <Route path="/categories" component={Categories} />
           <Route path="/orders" component={OrdersList} />
           <Route path="/orders/:id" component={({ params }) => <OrderDetail id={params.id} />} />
+          <Route path="/customers" component={CustomersPage} />
+          <Route path="/customers/:id" component={({ params }) => <CustomerDetailPage id={params.id} />} />
+          <Route path="/inventory" component={InventoryPage} />
+          <Route path="/shipments" component={ShipmentsPage} />
+          <Route path="/shipments/:id" component={({ params }) => <ShipmentDetailPage id={params.id} />} />
           <Route path="/settings" component={Settings} />
           <Route component={NotFound} />
         </Switch>
@@ -52,7 +65,6 @@ function Router() {
       <Route path="/login" component={Login} />
       <Route path="/register" component={Register} />
       <Route path="/">
-        {/* Simple redirect to dashboard */}
         {() => {
           window.location.href = "/dashboard";
           return null;

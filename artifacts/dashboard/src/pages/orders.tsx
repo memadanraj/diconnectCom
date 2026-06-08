@@ -39,10 +39,8 @@ export default function OrdersList() {
   const [, setLocation] = useLocation();
 
   const { data: ordersData, isLoading } = useListOrders({
-    query: {
-      search: search || undefined,
-      status: status !== "all" ? status : undefined,
-    }
+    search: search || undefined,
+    status: status !== "all" ? status : undefined,
   });
 
   const formatCurrency = (val: number) => 

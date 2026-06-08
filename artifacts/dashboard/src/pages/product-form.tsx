@@ -44,7 +44,7 @@ export default function ProductForm({ id }: { id?: string }) {
 
   const { data: categories } = useListCategories();
   const { data: product, isLoading: productLoading } = useGetProduct(id!, {
-    query: { enabled: !isNew }
+    query: { enabled: !isNew } as any
   });
 
   const createMutation = useCreateProduct();

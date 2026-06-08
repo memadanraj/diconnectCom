@@ -57,11 +57,9 @@ export default function ProductsList() {
   const { data: categories } = useListCategories();
   
   const { data: productsData, isLoading } = useListProducts({
-    query: {
-      search: search || undefined,
-      status: status !== "all" ? status : undefined,
-      categoryId: category !== "all" ? category : undefined,
-    }
+    search: search || undefined,
+    status: status !== "all" ? status : undefined,
+    categoryId: category !== "all" ? category : undefined,
   });
 
   const deleteProduct = useDeleteProduct();

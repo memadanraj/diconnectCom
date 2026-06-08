@@ -25,14 +25,14 @@ export default function OrderDetail({ id }: { id: string }) {
   const queryClient = useQueryClient();
 
   const { data: order, isLoading } = useGetOrder(id, {
-    query: { enabled: !!id }
+    query: { enabled: !!id } as any
   });
 
   const updateStatusMutation = useUpdateOrderStatus();
 
   const handleUpdateStatus = (newStatus: OrderStatusUpdateStatus) => {
     updateStatusMutation.mutate(
-      { params: { id }, data: { status: newStatus } },
+      { id, data: { status: newStatus } },
       {
         onSuccess: (updatedOrder) => {
           toast({ title: "Order status updated", description: `Status changed to ${newStatus.replace('_', ' ')}` });

@@ -5,11 +5,7 @@ import { Spinner } from "@/components/ui/spinner";
 
 export function AuthGuard({ children }: { children: React.ReactNode }) {
   const [, setLocation] = useLocation();
-  const { data: user, isLoading, error } = useGetMe({
-    query: {
-      retry: false,
-    }
-  });
+  const { data: user, isLoading, error } = useGetMe();
 
   useEffect(() => {
     if (error) {
@@ -20,7 +16,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
   if (isLoading) {
     return (
       <div className="flex h-screen w-full items-center justify-center">
-        <Spinner size="lg" className="text-primary" />
+        <Spinner className="h-8 w-8 text-primary" />
       </div>
     );
   }

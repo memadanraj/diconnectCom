@@ -2,8 +2,8 @@ openapi: 3.1.0
 info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
-  version: 0.1.0
-  description: Commerce OS API — Phase 1 MVP
+  version: 0.2.0
+  description: Commerce OS API — Phase 2
 servers:
   - url: /api
     description: Base API path
@@ -22,6 +22,14 @@ tags:
     description: Order management
   - name: dashboard
     description: Dashboard analytics
+  - name: warehouses
+    description: Warehouse management
+  - name: inventory
+    description: Inventory management
+  - name: customers
+    description: Customer management
+  - name: shipments
+    description: Shipment tracking
 
 paths:
   /healthz:
@@ -511,6 +519,513 @@ paths:
                 items:
                   $ref: "#/components/schemas/TopProduct"
 
+  # ─── Warehouses ──────────────────────────────────────────────────────────────
+  /warehouses:
+    get:
+      operationId: listWarehouses
+      tags: [warehouses]
+      summary: List all warehouses
+      responses:
+        "200":
+          description: List of warehouses
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Warehouse"
+    post:
+      operationId: createWarehouse
+      tags: [warehouses]
+      summary: Create a new warehouse
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WarehouseInput"
+      responses:
+        "201":
+          description: Created warehouse
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Warehouse"
+
+  /warehouses/{id}:
+    get:
+      operationId: getWarehouse
+      tags: [warehouses]
+      summary: Get a warehouse by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Warehouse
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Warehouse"
+        "404":
+          description: Not found
+    patch:
+      operationId: updateWarehouse
+      tags: [warehouses]
+      summary: Update a warehouse
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WarehouseUpdate"
+      responses:
+        "200":
+          description: Updated warehouse
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Warehouse"
+    delete:
+      operationId: deleteWarehouse
+      tags: [warehouses]
+      summary: Delete a warehouse
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Deleted
+
+  # ─── Inventory ───────────────────────────────────────────────────────────────
+  /inventory:
+    get:
+      operationId: listInventory
+      tags: [inventory]
+      summary: List inventory levels with optional filters
+      parameters:
+        - name: warehouseId
+          in: query
+          schema:
+            type: string
+        - name: productId
+          in: query
+          schema:
+            type: string
+        - name: lowStock
+          in: query
+          schema:
+            type: boolean
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: perPage
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        "200":
+          description: Paginated inventory list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InventoryList"
+    post:
+      operationId: createInventory
+      tags: [inventory]
+      summary: Create inventory record for a product in a warehouse
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InventoryInput"
+      responses:
+        "201":
+          description: Created inventory record
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InventoryItem"
+
+  /inventory/{id}:
+    get:
+      operationId: getInventoryItem
+      tags: [inventory]
+      summary: Get an inventory record by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Inventory record
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InventoryItem"
+        "404":
+          description: Not found
+    patch:
+      operationId: updateInventory
+      tags: [inventory]
+      summary: Adjust inventory levels
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InventoryUpdate"
+      responses:
+        "200":
+          description: Updated inventory record
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InventoryItem"
+
+  /inventory/{id}/transactions:
+    get:
+      operationId: listInventoryTransactions
+      tags: [inventory]
+      summary: List transaction history for an inventory record
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: perPage
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        "200":
+          description: Paginated transaction list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InventoryTransactionList"
+    post:
+      operationId: createInventoryTransaction
+      tags: [inventory]
+      summary: Record a stock movement transaction
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InventoryTransactionInput"
+      responses:
+        "201":
+          description: Created transaction
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InventoryTransaction"
+
+  # ─── Customers ───────────────────────────────────────────────────────────────
+  /customers:
+    get:
+      operationId: listCustomers
+      tags: [customers]
+      summary: List customers with optional search
+      parameters:
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: perPage
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        "200":
+          description: Paginated customers list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CustomerList"
+    post:
+      operationId: createCustomer
+      tags: [customers]
+      summary: Create a new customer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CustomerInput"
+      responses:
+        "201":
+          description: Created customer
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Customer"
+
+  /customers/{id}:
+    get:
+      operationId: getCustomer
+      tags: [customers]
+      summary: Get a customer by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Customer with addresses and recent orders
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CustomerDetail"
+        "404":
+          description: Not found
+    patch:
+      operationId: updateCustomer
+      tags: [customers]
+      summary: Update a customer
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CustomerUpdate"
+      responses:
+        "200":
+          description: Updated customer
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Customer"
+    delete:
+      operationId: deleteCustomer
+      tags: [customers]
+      summary: Delete a customer
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Deleted
+
+  /customers/{id}/addresses:
+    get:
+      operationId: listCustomerAddresses
+      tags: [customers]
+      summary: List addresses for a customer
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of addresses
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CustomerAddress"
+    post:
+      operationId: createCustomerAddress
+      tags: [customers]
+      summary: Add an address to a customer
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CustomerAddressInput"
+      responses:
+        "201":
+          description: Created address
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CustomerAddress"
+
+  # ─── Shipments ───────────────────────────────────────────────────────────────
+  /shipments:
+    get:
+      operationId: listShipments
+      tags: [shipments]
+      summary: List shipments with optional filters
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [pending, picked_up, in_transit, out_for_delivery, delivered, failed, returned]
+        - name: orderId
+          in: query
+          schema:
+            type: string
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: perPage
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        "200":
+          description: Paginated shipments list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ShipmentList"
+    post:
+      operationId: createShipment
+      tags: [shipments]
+      summary: Create a new shipment for an order
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ShipmentInput"
+      responses:
+        "201":
+          description: Created shipment
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Shipment"
+
+  /shipments/{id}:
+    get:
+      operationId: getShipment
+      tags: [shipments]
+      summary: Get a shipment by ID with tracking events
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Shipment with events
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ShipmentDetail"
+        "404":
+          description: Not found
+    patch:
+      operationId: updateShipment
+      tags: [shipments]
+      summary: Update shipment details
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ShipmentUpdate"
+      responses:
+        "200":
+          description: Updated shipment
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Shipment"
+
+  /shipments/{id}/events:
+    post:
+      operationId: addShipmentEvent
+      tags: [shipments]
+      summary: Add a tracking event to a shipment
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ShipmentEventInput"
+      responses:
+        "201":
+          description: Added event
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ShipmentEvent"
+
 components:
   schemas:
     HealthStatus:
@@ -980,6 +1495,498 @@ components:
           type: integer
         totalRevenue:
           type: number
+
+    # ─── Warehouse ─────────────────────────────────────────────────────────
+    Warehouse:
+      type: object
+      required: [id, name, isDefault, isActive, createdAt]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        address:
+          type: ["string", "null"]
+        city:
+          type: ["string", "null"]
+        country:
+          type: ["string", "null"]
+        isDefault:
+          type: boolean
+        isActive:
+          type: boolean
+        inventoryCount:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+
+    WarehouseInput:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+        address:
+          type: string
+        city:
+          type: string
+        country:
+          type: string
+        isDefault:
+          type: boolean
+
+    WarehouseUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        address:
+          type: string
+        city:
+          type: string
+        country:
+          type: string
+        isDefault:
+          type: boolean
+        isActive:
+          type: boolean
+
+    # ─── Inventory ─────────────────────────────────────────────────────────
+    InventoryItem:
+      type: object
+      required: [id, productId, warehouseId, available, reserved, damaged, returned, createdAt]
+      properties:
+        id:
+          type: string
+        productId:
+          type: string
+        productName:
+          type: ["string", "null"]
+        productSku:
+          type: ["string", "null"]
+        warehouseId:
+          type: string
+        warehouseName:
+          type: ["string", "null"]
+        available:
+          type: integer
+        reserved:
+          type: integer
+        damaged:
+          type: integer
+        returned:
+          type: integer
+        onHand:
+          type: integer
+        reorderPoint:
+          type: integer
+        isLowStock:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    InventoryInput:
+      type: object
+      required: [productId, warehouseId]
+      properties:
+        productId:
+          type: string
+        warehouseId:
+          type: string
+        available:
+          type: integer
+        reserved:
+          type: integer
+        damaged:
+          type: integer
+        returned:
+          type: integer
+        reorderPoint:
+          type: integer
+
+    InventoryUpdate:
+      type: object
+      properties:
+        available:
+          type: integer
+        reserved:
+          type: integer
+        damaged:
+          type: integer
+        returned:
+          type: integer
+        reorderPoint:
+          type: integer
+
+    InventoryList:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/InventoryItem"
+        meta:
+          $ref: "#/components/schemas/PaginationMeta"
+
+    InventoryTransaction:
+      type: object
+      required: [id, inventoryId, type, quantityDelta, createdAt]
+      properties:
+        id:
+          type: string
+        inventoryId:
+          type: string
+        type:
+          type: string
+          enum: [purchase, sale, adjustment, transfer_in, transfer_out, damage, return]
+        quantityDelta:
+          type: integer
+        note:
+          type: ["string", "null"]
+        referenceId:
+          type: ["string", "null"]
+        referenceType:
+          type: ["string", "null"]
+        createdBy:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+          format: date-time
+
+    InventoryTransactionInput:
+      type: object
+      required: [type, quantityDelta]
+      properties:
+        type:
+          type: string
+          enum: [purchase, sale, adjustment, transfer_in, transfer_out, damage, return]
+        quantityDelta:
+          type: integer
+        note:
+          type: string
+        referenceId:
+          type: string
+        referenceType:
+          type: string
+
+    InventoryTransactionList:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/InventoryTransaction"
+        meta:
+          $ref: "#/components/schemas/PaginationMeta"
+
+    # ─── Customer ──────────────────────────────────────────────────────────
+    Customer:
+      type: object
+      required: [id, email, totalOrders, totalSpent, createdAt]
+      properties:
+        id:
+          type: string
+        email:
+          type: string
+        firstName:
+          type: ["string", "null"]
+        lastName:
+          type: ["string", "null"]
+        phone:
+          type: ["string", "null"]
+        notes:
+          type: ["string", "null"]
+        totalOrders:
+          type: integer
+        totalSpent:
+          type: number
+        createdAt:
+          type: string
+          format: date-time
+
+    CustomerDetail:
+      type: object
+      required: [id, email, totalOrders, totalSpent, addresses, recentOrders, createdAt]
+      properties:
+        id:
+          type: string
+        email:
+          type: string
+        firstName:
+          type: ["string", "null"]
+        lastName:
+          type: ["string", "null"]
+        phone:
+          type: ["string", "null"]
+        notes:
+          type: ["string", "null"]
+        totalOrders:
+          type: integer
+        totalSpent:
+          type: number
+        addresses:
+          type: array
+          items:
+            $ref: "#/components/schemas/CustomerAddress"
+        recentOrders:
+          type: array
+          items:
+            $ref: "#/components/schemas/Order"
+        createdAt:
+          type: string
+          format: date-time
+
+    CustomerInput:
+      type: object
+      required: [email]
+      properties:
+        email:
+          type: string
+          format: email
+        firstName:
+          type: string
+        lastName:
+          type: string
+        phone:
+          type: string
+        notes:
+          type: string
+
+    CustomerUpdate:
+      type: object
+      properties:
+        email:
+          type: string
+        firstName:
+          type: string
+        lastName:
+          type: string
+        phone:
+          type: string
+        notes:
+          type: string
+
+    CustomerList:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Customer"
+        meta:
+          $ref: "#/components/schemas/PaginationMeta"
+
+    CustomerAddress:
+      type: object
+      required: [id, customerId, line1, isDefault, createdAt]
+      properties:
+        id:
+          type: string
+        customerId:
+          type: string
+        label:
+          type: ["string", "null"]
+        firstName:
+          type: ["string", "null"]
+        lastName:
+          type: ["string", "null"]
+        line1:
+          type: string
+        line2:
+          type: ["string", "null"]
+        city:
+          type: ["string", "null"]
+        state:
+          type: ["string", "null"]
+        country:
+          type: ["string", "null"]
+        postalCode:
+          type: ["string", "null"]
+        phone:
+          type: ["string", "null"]
+        isDefault:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+
+    CustomerAddressInput:
+      type: object
+      required: [line1]
+      properties:
+        label:
+          type: string
+        firstName:
+          type: string
+        lastName:
+          type: string
+        line1:
+          type: string
+        line2:
+          type: string
+        city:
+          type: string
+        state:
+          type: string
+        country:
+          type: string
+        postalCode:
+          type: string
+        phone:
+          type: string
+        isDefault:
+          type: boolean
+
+    # ─── Shipment ──────────────────────────────────────────────────────────
+    Shipment:
+      type: object
+      required: [id, orderId, status, createdAt]
+      properties:
+        id:
+          type: string
+        orderId:
+          type: string
+        orderNumber:
+          type: ["string", "null"]
+        trackingNumber:
+          type: ["string", "null"]
+        carrier:
+          type: ["string", "null"]
+        status:
+          type: string
+          enum: [pending, picked_up, in_transit, out_for_delivery, delivered, failed, returned]
+        estimatedDelivery:
+          type: ["string", "null"]
+          format: date-time
+        deliveredAt:
+          type: ["string", "null"]
+          format: date-time
+        notes:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+          format: date-time
+
+    ShipmentDetail:
+      type: object
+      required: [id, orderId, status, events, createdAt]
+      properties:
+        id:
+          type: string
+        orderId:
+          type: string
+        orderNumber:
+          type: ["string", "null"]
+        customerName:
+          type: ["string", "null"]
+        trackingNumber:
+          type: ["string", "null"]
+        carrier:
+          type: ["string", "null"]
+        status:
+          type: string
+          enum: [pending, picked_up, in_transit, out_for_delivery, delivered, failed, returned]
+        estimatedDelivery:
+          type: ["string", "null"]
+          format: date-time
+        deliveredAt:
+          type: ["string", "null"]
+          format: date-time
+        notes:
+          type: ["string", "null"]
+        events:
+          type: array
+          items:
+            $ref: "#/components/schemas/ShipmentEvent"
+        createdAt:
+          type: string
+          format: date-time
+
+    ShipmentInput:
+      type: object
+      required: [orderId]
+      properties:
+        orderId:
+          type: string
+        trackingNumber:
+          type: string
+        carrier:
+          type: string
+        status:
+          type: string
+          enum: [pending, picked_up, in_transit, out_for_delivery, delivered, failed, returned]
+        estimatedDelivery:
+          type: string
+          format: date-time
+        notes:
+          type: string
+
+    ShipmentUpdate:
+      type: object
+      properties:
+        trackingNumber:
+          type: string
+        carrier:
+          type: string
+        status:
+          type: string
+          enum: [pending, picked_up, in_transit, out_for_delivery, delivered, failed, returned]
+        estimatedDelivery:
+          type: string
+          format: date-time
+        notes:
+          type: string
+
+    ShipmentList:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Shipment"
+        meta:
+          $ref: "#/components/schemas/PaginationMeta"
+
+    ShipmentEvent:
+      type: object
+      required: [id, shipmentId, status, occurredAt]
+      properties:
+        id:
+          type: string
+        shipmentId:
+          type: string
+        status:
+          type: string
+        description:
+          type: ["string", "null"]
+        location:
+          type: ["string", "null"]
+        occurredAt:
+          type: string
+          format: date-time
+
+    ShipmentEventInput:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+        description:
+          type: string
+        location:
+          type: string
+        occurredAt:
+          type: string
+          format: date-time
 
     # ─── Shared ────────────────────────────────────────────────────────────
     PaginationMeta:
