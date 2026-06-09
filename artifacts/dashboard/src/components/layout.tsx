@@ -13,6 +13,8 @@ import {
   Users,
   Warehouse,
   Truck,
+  Tag,
+  RotateCcw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -34,11 +36,13 @@ const NAV_SECTIONS = [
       { href: "/customers", label: "Customers", icon: Users },
       { href: "/inventory", label: "Inventory", icon: Warehouse },
       { href: "/shipments", label: "Shipments", icon: Truck },
+      { href: "/returns", label: "Returns", icon: RotateCcw },
     ],
   },
   {
     label: "Store",
     items: [
+      { href: "/discounts", label: "Discounts", icon: Tag },
       { href: "/settings", label: "Settings", icon: Settings },
     ],
   },

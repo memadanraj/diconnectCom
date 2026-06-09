@@ -753,6 +753,277 @@ export interface ShipmentEventInput {
   occurredAt?: string;
 }
 
+export type DiscountType = typeof DiscountType[keyof typeof DiscountType];
+
+
+export const DiscountType = {
+  percentage: 'percentage',
+  fixed: 'fixed',
+  free_shipping: 'free_shipping',
+} as const;
+
+export interface Discount {
+  id: string;
+  code: string;
+  /** @nullable */
+  description?: string | null;
+  type: DiscountType;
+  value: number;
+  /** @nullable */
+  minOrderAmount?: number | null;
+  /** @nullable */
+  maxDiscountAmount?: number | null;
+  /** @nullable */
+  usageLimit?: number | null;
+  usageCount: number;
+  isActive: boolean;
+  /** @nullable */
+  startsAt?: string | null;
+  /** @nullable */
+  expiresAt?: string | null;
+  createdAt: string;
+}
+
+export type DiscountInputType = typeof DiscountInputType[keyof typeof DiscountInputType];
+
+
+export const DiscountInputType = {
+  percentage: 'percentage',
+  fixed: 'fixed',
+  free_shipping: 'free_shipping',
+} as const;
+
+export interface DiscountInput {
+  code: string;
+  description?: string;
+  type: DiscountInputType;
+  value: number;
+  minOrderAmount?: number;
+  maxDiscountAmount?: number;
+  usageLimit?: number;
+  isActive?: boolean;
+  startsAt?: string;
+  expiresAt?: string;
+}
+
+export interface DiscountValidation {
+  valid: boolean;
+  discount?: Discount;
+  discountAmount?: number;
+  message?: string;
+}
+
+export type ReturnStatus = typeof ReturnStatus[keyof typeof ReturnStatus];
+
+
+export const ReturnStatus = {
+  requested: 'requested',
+  approved: 'approved',
+  rejected: 'rejected',
+  received: 'received',
+  refunded: 'refunded',
+  closed: 'closed',
+} as const;
+
+export type ReturnReason = typeof ReturnReason[keyof typeof ReturnReason];
+
+
+export const ReturnReason = {
+  defective: 'defective',
+  wrong_item: 'wrong_item',
+  not_as_described: 'not_as_described',
+  changed_mind: 'changed_mind',
+  duplicate_order: 'duplicate_order',
+  other: 'other',
+} as const;
+
+/**
+ * @nullable
+ */
+export type ReturnRefundMethod = typeof ReturnRefundMethod[keyof typeof ReturnRefundMethod] | null;
+
+
+export const ReturnRefundMethod = {
+  original_payment: 'original_payment',
+  store_credit: 'store_credit',
+  bank_transfer: 'bank_transfer',
+} as const;
+
+export interface Return {
+  id: string;
+  returnNumber: string;
+  orderId: string;
+  /** @nullable */
+  orderNumber?: string | null;
+  /** @nullable */
+  customerName?: string | null;
+  /** @nullable */
+  customerEmail?: string | null;
+  status: ReturnStatus;
+  reason: ReturnReason;
+  /** @nullable */
+  notes?: string | null;
+  refundAmount: number;
+  /** @nullable */
+  refundMethod?: ReturnRefundMethod;
+  itemCount?: number;
+  createdAt: string;
+}
+
+export type ReturnDetailStatus = typeof ReturnDetailStatus[keyof typeof ReturnDetailStatus];
+
+
+export const ReturnDetailStatus = {
+  requested: 'requested',
+  approved: 'approved',
+  rejected: 'rejected',
+  received: 'received',
+  refunded: 'refunded',
+  closed: 'closed',
+} as const;
+
+export type ReturnDetailReason = typeof ReturnDetailReason[keyof typeof ReturnDetailReason];
+
+
+export const ReturnDetailReason = {
+  defective: 'defective',
+  wrong_item: 'wrong_item',
+  not_as_described: 'not_as_described',
+  changed_mind: 'changed_mind',
+  duplicate_order: 'duplicate_order',
+  other: 'other',
+} as const;
+
+/**
+ * @nullable
+ */
+export type ReturnItemCondition = typeof ReturnItemCondition[keyof typeof ReturnItemCondition] | null;
+
+
+export const ReturnItemCondition = {
+  unopened: 'unopened',
+  opened: 'opened',
+  damaged: 'damaged',
+} as const;
+
+export interface ReturnItem {
+  id: string;
+  returnId: string;
+  /** @nullable */
+  orderItemId?: string | null;
+  /** @nullable */
+  productId?: string | null;
+  productName: string;
+  /** @nullable */
+  sku?: string | null;
+  quantity: number;
+  unitPrice: number;
+  /** @nullable */
+  reason?: string | null;
+  /** @nullable */
+  condition?: ReturnItemCondition;
+}
+
+export interface ReturnDetail {
+  id: string;
+  returnNumber: string;
+  orderId: string;
+  /** @nullable */
+  orderNumber?: string | null;
+  /** @nullable */
+  customerName?: string | null;
+  /** @nullable */
+  customerEmail?: string | null;
+  status: ReturnDetailStatus;
+  reason: ReturnDetailReason;
+  /** @nullable */
+  notes?: string | null;
+  refundAmount: number;
+  /** @nullable */
+  refundMethod?: string | null;
+  items: ReturnItem[];
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export type ReturnInputReason = typeof ReturnInputReason[keyof typeof ReturnInputReason];
+
+
+export const ReturnInputReason = {
+  defective: 'defective',
+  wrong_item: 'wrong_item',
+  not_as_described: 'not_as_described',
+  changed_mind: 'changed_mind',
+  duplicate_order: 'duplicate_order',
+  other: 'other',
+} as const;
+
+export type ReturnInputRefundMethod = typeof ReturnInputRefundMethod[keyof typeof ReturnInputRefundMethod];
+
+
+export const ReturnInputRefundMethod = {
+  original_payment: 'original_payment',
+  store_credit: 'store_credit',
+  bank_transfer: 'bank_transfer',
+} as const;
+
+export type ReturnInputItemsItemCondition = typeof ReturnInputItemsItemCondition[keyof typeof ReturnInputItemsItemCondition];
+
+
+export const ReturnInputItemsItemCondition = {
+  unopened: 'unopened',
+  opened: 'opened',
+  damaged: 'damaged',
+} as const;
+
+export type ReturnInputItemsItem = {
+  orderItemId?: string;
+  productId?: string;
+  productName: string;
+  sku?: string;
+  quantity: number;
+  unitPrice: number;
+  reason?: string;
+  condition?: ReturnInputItemsItemCondition;
+};
+
+export interface ReturnInput {
+  orderId: string;
+  reason: ReturnInputReason;
+  notes?: string;
+  refundAmount?: number;
+  refundMethod?: ReturnInputRefundMethod;
+  items: ReturnInputItemsItem[];
+}
+
+export type ReturnStatusUpdateStatus = typeof ReturnStatusUpdateStatus[keyof typeof ReturnStatusUpdateStatus];
+
+
+export const ReturnStatusUpdateStatus = {
+  requested: 'requested',
+  approved: 'approved',
+  rejected: 'rejected',
+  received: 'received',
+  refunded: 'refunded',
+  closed: 'closed',
+} as const;
+
+export type ReturnStatusUpdateRefundMethod = typeof ReturnStatusUpdateRefundMethod[keyof typeof ReturnStatusUpdateRefundMethod];
+
+
+export const ReturnStatusUpdateRefundMethod = {
+  original_payment: 'original_payment',
+  store_credit: 'store_credit',
+  bank_transfer: 'bank_transfer',
+} as const;
+
+export interface ReturnStatusUpdate {
+  status: ReturnStatusUpdateStatus;
+  notes?: string;
+  refundAmount?: number;
+  refundMethod?: ReturnStatusUpdateRefundMethod;
+}
+
 export type ListProductsParams = {
 status?: ListProductsStatus;
 categoryId?: string;
@@ -838,4 +1109,45 @@ export const ListShipmentsStatus = {
   failed: 'failed',
   returned: 'returned',
 } as const;
+
+export type ListDiscountsParams = {
+search?: string;
+isActive?: boolean;
+page?: number;
+perPage?: number;
+};
+
+export type ListDiscounts200 = {
+  data: Discount[];
+  meta: PaginationMeta;
+};
+
+export type ValidateDiscountBody = {
+  code: string;
+  orderAmount?: number;
+};
+
+export type ListReturnsParams = {
+search?: string;
+status?: ListReturnsStatus;
+page?: number;
+perPage?: number;
+};
+
+export type ListReturnsStatus = typeof ListReturnsStatus[keyof typeof ListReturnsStatus];
+
+
+export const ListReturnsStatus = {
+  requested: 'requested',
+  approved: 'approved',
+  rejected: 'rejected',
+  received: 'received',
+  refunded: 'refunded',
+  closed: 'closed',
+} as const;
+
+export type ListReturns200 = {
+  data: Return[];
+  meta: PaginationMeta;
+};
 

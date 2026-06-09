@@ -1088,3 +1088,288 @@ export const AddShipmentEventBody = zod.object({
 })
 
 
+/**
+ * @summary List discounts
+ */
+export const ListDiscountsQueryParams = zod.object({
+  "search": zod.coerce.string().optional(),
+  "isActive": zod.coerce.boolean().optional(),
+  "page": zod.coerce.number().optional(),
+  "perPage": zod.coerce.number().optional()
+})
+
+export const ListDiscountsResponse = zod.object({
+  "data": zod.array(zod.object({
+  "id": zod.string(),
+  "code": zod.string(),
+  "description": zod.string().nullish(),
+  "type": zod.enum(['percentage', 'fixed', 'free_shipping']),
+  "value": zod.number(),
+  "minOrderAmount": zod.number().nullish(),
+  "maxDiscountAmount": zod.number().nullish(),
+  "usageLimit": zod.number().nullish(),
+  "usageCount": zod.number(),
+  "isActive": zod.boolean(),
+  "startsAt": zod.coerce.date().nullish(),
+  "expiresAt": zod.coerce.date().nullish(),
+  "createdAt": zod.coerce.date()
+})),
+  "meta": zod.object({
+  "page": zod.number(),
+  "perPage": zod.number(),
+  "total": zod.number()
+})
+})
+
+
+/**
+ * @summary Create a discount
+ */
+export const CreateDiscountBody = zod.object({
+  "code": zod.string(),
+  "description": zod.string().optional(),
+  "type": zod.enum(['percentage', 'fixed', 'free_shipping']),
+  "value": zod.number(),
+  "minOrderAmount": zod.number().optional(),
+  "maxDiscountAmount": zod.number().optional(),
+  "usageLimit": zod.number().optional(),
+  "isActive": zod.boolean().optional(),
+  "startsAt": zod.coerce.date().optional(),
+  "expiresAt": zod.coerce.date().optional()
+})
+
+
+/**
+ * @summary Validate a discount code
+ */
+export const ValidateDiscountBody = zod.object({
+  "code": zod.string(),
+  "orderAmount": zod.number().optional()
+})
+
+export const ValidateDiscountResponse = zod.object({
+  "valid": zod.boolean(),
+  "discount": zod.object({
+  "id": zod.string(),
+  "code": zod.string(),
+  "description": zod.string().nullish(),
+  "type": zod.enum(['percentage', 'fixed', 'free_shipping']),
+  "value": zod.number(),
+  "minOrderAmount": zod.number().nullish(),
+  "maxDiscountAmount": zod.number().nullish(),
+  "usageLimit": zod.number().nullish(),
+  "usageCount": zod.number(),
+  "isActive": zod.boolean(),
+  "startsAt": zod.coerce.date().nullish(),
+  "expiresAt": zod.coerce.date().nullish(),
+  "createdAt": zod.coerce.date()
+}).optional(),
+  "discountAmount": zod.number().optional(),
+  "message": zod.string().optional()
+})
+
+
+/**
+ * @summary Get a discount
+ */
+export const GetDiscountParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const GetDiscountResponse = zod.object({
+  "id": zod.string(),
+  "code": zod.string(),
+  "description": zod.string().nullish(),
+  "type": zod.enum(['percentage', 'fixed', 'free_shipping']),
+  "value": zod.number(),
+  "minOrderAmount": zod.number().nullish(),
+  "maxDiscountAmount": zod.number().nullish(),
+  "usageLimit": zod.number().nullish(),
+  "usageCount": zod.number(),
+  "isActive": zod.boolean(),
+  "startsAt": zod.coerce.date().nullish(),
+  "expiresAt": zod.coerce.date().nullish(),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Update a discount
+ */
+export const UpdateDiscountParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const UpdateDiscountBody = zod.object({
+  "code": zod.string(),
+  "description": zod.string().optional(),
+  "type": zod.enum(['percentage', 'fixed', 'free_shipping']),
+  "value": zod.number(),
+  "minOrderAmount": zod.number().optional(),
+  "maxDiscountAmount": zod.number().optional(),
+  "usageLimit": zod.number().optional(),
+  "isActive": zod.boolean().optional(),
+  "startsAt": zod.coerce.date().optional(),
+  "expiresAt": zod.coerce.date().optional()
+})
+
+export const UpdateDiscountResponse = zod.object({
+  "id": zod.string(),
+  "code": zod.string(),
+  "description": zod.string().nullish(),
+  "type": zod.enum(['percentage', 'fixed', 'free_shipping']),
+  "value": zod.number(),
+  "minOrderAmount": zod.number().nullish(),
+  "maxDiscountAmount": zod.number().nullish(),
+  "usageLimit": zod.number().nullish(),
+  "usageCount": zod.number(),
+  "isActive": zod.boolean(),
+  "startsAt": zod.coerce.date().nullish(),
+  "expiresAt": zod.coerce.date().nullish(),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Delete a discount
+ */
+export const DeleteDiscountParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+
+/**
+ * @summary List returns
+ */
+export const ListReturnsQueryParams = zod.object({
+  "search": zod.coerce.string().optional(),
+  "status": zod.enum(['requested', 'approved', 'rejected', 'received', 'refunded', 'closed']).optional(),
+  "page": zod.coerce.number().optional(),
+  "perPage": zod.coerce.number().optional()
+})
+
+export const ListReturnsResponse = zod.object({
+  "data": zod.array(zod.object({
+  "id": zod.string(),
+  "returnNumber": zod.string(),
+  "orderId": zod.string(),
+  "orderNumber": zod.string().nullish(),
+  "customerName": zod.string().nullish(),
+  "customerEmail": zod.string().nullish(),
+  "status": zod.enum(['requested', 'approved', 'rejected', 'received', 'refunded', 'closed']),
+  "reason": zod.enum(['defective', 'wrong_item', 'not_as_described', 'changed_mind', 'duplicate_order', 'other']),
+  "notes": zod.string().nullish(),
+  "refundAmount": zod.number(),
+  "refundMethod": zod.union([zod.literal('original_payment'),zod.literal('store_credit'),zod.literal('bank_transfer'),zod.literal(null)]).nullish(),
+  "itemCount": zod.number().optional(),
+  "createdAt": zod.coerce.date()
+})),
+  "meta": zod.object({
+  "page": zod.number(),
+  "perPage": zod.number(),
+  "total": zod.number()
+})
+})
+
+
+/**
+ * @summary Create a return request
+ */
+export const CreateReturnBody = zod.object({
+  "orderId": zod.string(),
+  "reason": zod.enum(['defective', 'wrong_item', 'not_as_described', 'changed_mind', 'duplicate_order', 'other']),
+  "notes": zod.string().optional(),
+  "refundAmount": zod.number().optional(),
+  "refundMethod": zod.enum(['original_payment', 'store_credit', 'bank_transfer']).optional(),
+  "items": zod.array(zod.object({
+  "orderItemId": zod.string().optional(),
+  "productId": zod.string().optional(),
+  "productName": zod.string(),
+  "sku": zod.string().optional(),
+  "quantity": zod.number(),
+  "unitPrice": zod.number(),
+  "reason": zod.string().optional(),
+  "condition": zod.enum(['unopened', 'opened', 'damaged']).optional()
+}))
+})
+
+
+/**
+ * @summary Get return detail
+ */
+export const GetReturnParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const GetReturnResponse = zod.object({
+  "id": zod.string(),
+  "returnNumber": zod.string(),
+  "orderId": zod.string(),
+  "orderNumber": zod.string().nullish(),
+  "customerName": zod.string().nullish(),
+  "customerEmail": zod.string().nullish(),
+  "status": zod.enum(['requested', 'approved', 'rejected', 'received', 'refunded', 'closed']),
+  "reason": zod.enum(['defective', 'wrong_item', 'not_as_described', 'changed_mind', 'duplicate_order', 'other']),
+  "notes": zod.string().nullish(),
+  "refundAmount": zod.number(),
+  "refundMethod": zod.string().nullish(),
+  "items": zod.array(zod.object({
+  "id": zod.string(),
+  "returnId": zod.string(),
+  "orderItemId": zod.string().nullish(),
+  "productId": zod.string().nullish(),
+  "productName": zod.string(),
+  "sku": zod.string().nullish(),
+  "quantity": zod.number(),
+  "unitPrice": zod.number(),
+  "reason": zod.string().nullish(),
+  "condition": zod.union([zod.literal('unopened'),zod.literal('opened'),zod.literal('damaged'),zod.literal(null)]).nullish()
+})),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date().optional()
+})
+
+
+/**
+ * @summary Update return status
+ */
+export const UpdateReturnStatusParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const UpdateReturnStatusBody = zod.object({
+  "status": zod.enum(['requested', 'approved', 'rejected', 'received', 'refunded', 'closed']),
+  "notes": zod.string().optional(),
+  "refundAmount": zod.number().optional(),
+  "refundMethod": zod.enum(['original_payment', 'store_credit', 'bank_transfer']).optional()
+})
+
+export const UpdateReturnStatusResponse = zod.object({
+  "id": zod.string(),
+  "returnNumber": zod.string(),
+  "orderId": zod.string(),
+  "orderNumber": zod.string().nullish(),
+  "customerName": zod.string().nullish(),
+  "customerEmail": zod.string().nullish(),
+  "status": zod.enum(['requested', 'approved', 'rejected', 'received', 'refunded', 'closed']),
+  "reason": zod.enum(['defective', 'wrong_item', 'not_as_described', 'changed_mind', 'duplicate_order', 'other']),
+  "notes": zod.string().nullish(),
+  "refundAmount": zod.number(),
+  "refundMethod": zod.string().nullish(),
+  "items": zod.array(zod.object({
+  "id": zod.string(),
+  "returnId": zod.string(),
+  "orderItemId": zod.string().nullish(),
+  "productId": zod.string().nullish(),
+  "productName": zod.string(),
+  "sku": zod.string().nullish(),
+  "quantity": zod.number(),
+  "unitPrice": zod.number(),
+  "reason": zod.string().nullish(),
+  "condition": zod.union([zod.literal('unopened'),zod.literal('opened'),zod.literal('damaged'),zod.literal(null)]).nullish()
+})),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date().optional()
+})
+
+

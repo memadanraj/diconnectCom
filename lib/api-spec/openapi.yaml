@@ -30,6 +30,10 @@ tags:
     description: Customer management
   - name: shipments
     description: Shipment tracking
+  - name: discounts
+    description: Discount & coupon management
+  - name: returns
+    description: Returns & refunds management
 
 paths:
   /healthz:
@@ -1026,6 +1030,231 @@ paths:
               schema:
                 $ref: "#/components/schemas/ShipmentEvent"
 
+  # ─── Discounts ─────────────────────────────────────────────────────────────
+  /discounts:
+    get:
+      operationId: listDiscounts
+      tags: [discounts]
+      summary: List discounts
+      parameters:
+        - name: search
+          in: query
+          schema: { type: string }
+        - name: isActive
+          in: query
+          schema: { type: boolean }
+        - name: page
+          in: query
+          schema: { type: integer }
+        - name: perPage
+          in: query
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Paginated discounts
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Discount"
+                  meta:
+                    $ref: "#/components/schemas/PaginationMeta"
+    post:
+      operationId: createDiscount
+      tags: [discounts]
+      summary: Create a discount
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DiscountInput"
+      responses:
+        "201":
+          description: Created discount
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Discount"
+
+  /discounts/validate:
+    post:
+      operationId: validateDiscount
+      tags: [discounts]
+      summary: Validate a discount code
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [code]
+              properties:
+                code:
+                  type: string
+                orderAmount:
+                  type: number
+      responses:
+        "200":
+          description: Validation result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DiscountValidation"
+
+  /discounts/{id}:
+    get:
+      operationId: getDiscount
+      tags: [discounts]
+      summary: Get a discount
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Discount
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Discount"
+    patch:
+      operationId: updateDiscount
+      tags: [discounts]
+      summary: Update a discount
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DiscountInput"
+      responses:
+        "200":
+          description: Updated discount
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Discount"
+    delete:
+      operationId: deleteDiscount
+      tags: [discounts]
+      summary: Delete a discount
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "204":
+          description: Deleted
+
+  # ─── Returns ────────────────────────────────────────────────────────────────
+  /returns:
+    get:
+      operationId: listReturns
+      tags: [returns]
+      summary: List returns
+      parameters:
+        - name: search
+          in: query
+          schema: { type: string }
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [requested, approved, rejected, received, refunded, closed]
+        - name: page
+          in: query
+          schema: { type: integer }
+        - name: perPage
+          in: query
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Paginated returns
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Return"
+                  meta:
+                    $ref: "#/components/schemas/PaginationMeta"
+    post:
+      operationId: createReturn
+      tags: [returns]
+      summary: Create a return request
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReturnInput"
+      responses:
+        "201":
+          description: Created return
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReturnDetail"
+
+  /returns/{id}:
+    get:
+      operationId: getReturn
+      tags: [returns]
+      summary: Get return detail
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Return detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReturnDetail"
+
+  /returns/{id}/status:
+    patch:
+      operationId: updateReturnStatus
+      tags: [returns]
+      summary: Update return status
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReturnStatusUpdate"
+      responses:
+        "200":
+          description: Updated return
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReturnDetail"
+
 components:
   schemas:
     HealthStatus:
@@ -1989,6 +2218,239 @@ components:
         occurredAt:
           type: string
           format: date-time
+
+    # ─── Discount ───────────────────────────────────────────────────────────
+    Discount:
+      type: object
+      required: [id, code, type, value, isActive, usageCount, createdAt]
+      properties:
+        id:
+          type: string
+        code:
+          type: string
+        description:
+          type: ["string", "null"]
+        type:
+          type: string
+          enum: [percentage, fixed, free_shipping]
+        value:
+          type: number
+        minOrderAmount:
+          type: ["number", "null"]
+        maxDiscountAmount:
+          type: ["number", "null"]
+        usageLimit:
+          type: ["integer", "null"]
+        usageCount:
+          type: integer
+        isActive:
+          type: boolean
+        startsAt:
+          type: ["string", "null"]
+          format: date-time
+        expiresAt:
+          type: ["string", "null"]
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+
+    DiscountInput:
+      type: object
+      required: [code, type, value]
+      properties:
+        code:
+          type: string
+        description:
+          type: string
+        type:
+          type: string
+          enum: [percentage, fixed, free_shipping]
+        value:
+          type: number
+        minOrderAmount:
+          type: number
+        maxDiscountAmount:
+          type: number
+        usageLimit:
+          type: integer
+        isActive:
+          type: boolean
+        startsAt:
+          type: string
+          format: date-time
+        expiresAt:
+          type: string
+          format: date-time
+
+    DiscountValidation:
+      type: object
+      required: [valid]
+      properties:
+        valid:
+          type: boolean
+        discount:
+          $ref: "#/components/schemas/Discount"
+        discountAmount:
+          type: number
+        message:
+          type: string
+
+    # ─── Return ─────────────────────────────────────────────────────────────
+    Return:
+      type: object
+      required: [id, returnNumber, orderId, status, reason, refundAmount, createdAt]
+      properties:
+        id:
+          type: string
+        returnNumber:
+          type: string
+        orderId:
+          type: string
+        orderNumber:
+          type: ["string", "null"]
+        customerName:
+          type: ["string", "null"]
+        customerEmail:
+          type: ["string", "null"]
+        status:
+          type: string
+          enum: [requested, approved, rejected, received, refunded, closed]
+        reason:
+          type: string
+          enum: [defective, wrong_item, not_as_described, changed_mind, duplicate_order, other]
+        notes:
+          type: ["string", "null"]
+        refundAmount:
+          type: number
+        refundMethod:
+          type: ["string", "null"]
+          enum: [original_payment, store_credit, bank_transfer, null]
+        itemCount:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+
+    ReturnDetail:
+      type: object
+      required: [id, returnNumber, orderId, status, reason, refundAmount, items, createdAt]
+      properties:
+        id:
+          type: string
+        returnNumber:
+          type: string
+        orderId:
+          type: string
+        orderNumber:
+          type: ["string", "null"]
+        customerName:
+          type: ["string", "null"]
+        customerEmail:
+          type: ["string", "null"]
+        status:
+          type: string
+          enum: [requested, approved, rejected, received, refunded, closed]
+        reason:
+          type: string
+          enum: [defective, wrong_item, not_as_described, changed_mind, duplicate_order, other]
+        notes:
+          type: ["string", "null"]
+        refundAmount:
+          type: number
+        refundMethod:
+          type: ["string", "null"]
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/ReturnItem"
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    ReturnItem:
+      type: object
+      required: [id, returnId, productName, quantity, unitPrice]
+      properties:
+        id:
+          type: string
+        returnId:
+          type: string
+        orderItemId:
+          type: ["string", "null"]
+        productId:
+          type: ["string", "null"]
+        productName:
+          type: string
+        sku:
+          type: ["string", "null"]
+        quantity:
+          type: integer
+        unitPrice:
+          type: number
+        reason:
+          type: ["string", "null"]
+        condition:
+          type: ["string", "null"]
+          enum: [unopened, opened, damaged, null]
+
+    ReturnInput:
+      type: object
+      required: [orderId, reason, items]
+      properties:
+        orderId:
+          type: string
+        reason:
+          type: string
+          enum: [defective, wrong_item, not_as_described, changed_mind, duplicate_order, other]
+        notes:
+          type: string
+        refundAmount:
+          type: number
+        refundMethod:
+          type: string
+          enum: [original_payment, store_credit, bank_transfer]
+        items:
+          type: array
+          items:
+            type: object
+            required: [productName, quantity, unitPrice]
+            properties:
+              orderItemId:
+                type: string
+              productId:
+                type: string
+              productName:
+                type: string
+              sku:
+                type: string
+              quantity:
+                type: integer
+              unitPrice:
+                type: number
+              reason:
+                type: string
+              condition:
+                type: string
+                enum: [unopened, opened, damaged]
+
+    ReturnStatusUpdate:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [requested, approved, rejected, received, refunded, closed]
+        notes:
+          type: string
+        refundAmount:
+          type: number
+        refundMethod:
+          type: string
+          enum: [original_payment, store_credit, bank_transfer]
 
     # ─── Shared ────────────────────────────────────────────────────────────
     PaginationMeta:
