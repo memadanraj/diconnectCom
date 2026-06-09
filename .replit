@@ -49,7 +49,7 @@ args = "PORT=8081 BASE_PATH=/ pnpm --filter @workspace/dashboard run dev"
 waitForPort = 8081
 
 [agent]
-stack = "PNPM_WORKSPACE"
+stack = "BEST_EFFORT_FALLBACK"
 expertMode = true
 
 [postMerge]
@@ -67,3 +67,8 @@ externalPort = 80
 [[ports]]
 localPort = 23183
 externalPort = 3000
+
+[userenv]
+
+[userenv.shared]
+JWT_SECRET = "07fb61f81d7bb23c2665a48b0c285421595e55b3ffb6da2928063b3a407655ad"
