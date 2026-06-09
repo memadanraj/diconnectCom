@@ -119,7 +119,7 @@ export default function OrderDetail({ id }: { id: string }) {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {order.items.map((item) => (
+                {(order.items ?? []).map((item) => (
                   <div key={item.id} className="flex items-start gap-4">
                     <div className="h-16 w-16 rounded-md border bg-muted flex items-center justify-center overflow-hidden flex-shrink-0">
                       {item.imageUrl ? (

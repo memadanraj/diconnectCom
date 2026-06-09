@@ -12,3 +12,4 @@ export * from "./returns";
 export * from "./loyalty";
 export * from "./segments";
 export * from "./campaigns";
+export * from "./tickets";

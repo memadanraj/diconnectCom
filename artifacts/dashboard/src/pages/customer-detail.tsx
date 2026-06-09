@@ -10,8 +10,16 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Mail, Phone, MapPin, Plus, ShoppingBag } from "lucide-react";
+import { ArrowLeft, Mail, Phone, MapPin, Plus, ShoppingBag, X } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
+
+function apiFetch(url: string, init?: RequestInit) {
+  const token = localStorage.getItem("commerce_token");
+  return fetch(url, {
+    ...init,
+    headers: { ...(init?.headers ?? {}), ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+  });
+}
 
 const STATUS_COLORS: Record<string, string> = {
   pending: "bg-yellow-100 text-yellow-800",
@@ -32,6 +40,7 @@ export default function CustomerDetailPage({ id }: { id: string }) {
   const [showAddAddress, setShowAddAddress] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [form, setForm] = useState({ firstName: "", lastName: "", phone: "", notes: "" });
+  const [newTag, setNewTag] = useState("");
   const [addressForm, setAddressForm] = useState({ label: "", firstName: "", lastName: "", line1: "", city: "", country: "", postalCode: "", phone: "", isDefault: false });
   const { toast } = useToast();
   const qc = useQueryClient();
@@ -42,6 +51,41 @@ export default function CustomerDetailPage({ id }: { id: string }) {
       onError: () => toast({ title: "Failed to update", variant: "destructive" }),
     },
   });
+
+  const handleAddTag = async () => {
+    const tag = newTag.trim().toLowerCase();
+    if (!tag || !customer) return;
+    const existingTags: string[] = (customer as any).tags ?? [];
+    if (existingTags.includes(tag)) { setNewTag(""); return; }
+    const newTags = [...existingTags, tag];
+    setNewTag("");
+    try {
+      await apiFetch(`/api/customers/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tags: newTags }),
+      });
+      qc.invalidateQueries({ queryKey: [`/api/customers/${id}`] });
+    } catch {
+      toast({ title: "Failed to add tag", variant: "destructive" });
+    }
+  };
+
+  const handleRemoveTag = async (tag: string) => {
+    if (!customer) return;
+    const existingTags: string[] = (customer as any).tags ?? [];
+    const newTags = existingTags.filter(t => t !== tag);
+    try {
+      await apiFetch(`/api/customers/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tags: newTags }),
+      });
+      qc.invalidateQueries({ queryKey: [`/api/customers/${id}`] });
+    } catch {
+      toast({ title: "Failed to remove tag", variant: "destructive" });
+    }
+  };
   const addAddressMutation = useCreateCustomerAddress({
     mutation: {
       onSuccess: () => { qc.invalidateQueries({ queryKey: [`/api/customers/${id}`] }); setShowAddAddress(false); toast({ title: "Address added" }); },
@@ -103,6 +147,32 @@ export default function CustomerDetailPage({ id }: { id: string }) {
                   {customer.notes && <p className="text-xs text-muted-foreground pt-2 border-t">{customer.notes}</p>}
                 </div>
               )}
+              {/* Tags — always visible */}
+              <div className="pt-3 border-t space-y-2">
+                <Label className="text-xs">Tags</Label>
+                <div className="flex flex-wrap gap-1.5">
+                  {((customer as any).tags ?? []).map((tag: string) => (
+                    <Badge key={tag} variant="secondary" className="gap-1 pr-1 text-xs">
+                      {tag}
+                      <button onClick={() => handleRemoveTag(tag)} className="ml-0.5 hover:text-destructive rounded-full">
+                        <X className="h-2.5 w-2.5" />
+                      </button>
+                    </Badge>
+                  ))}
+                </div>
+                <div className="flex gap-1.5">
+                  <Input
+                    className="h-7 text-xs flex-1"
+                    placeholder="Add tag (e.g. vip)"
+                    value={newTag}
+                    onChange={e => setNewTag(e.target.value)}
+                    onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); handleAddTag(); } }}
+                  />
+                  <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={handleAddTag} disabled={!newTag.trim()}>
+                    <Plus className="h-3 w-3" />
+                  </Button>
+                </div>
+              </div>
             </CardContent>
           </Card>
 

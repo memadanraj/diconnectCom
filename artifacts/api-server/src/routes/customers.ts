@@ -10,7 +10,7 @@ router.use(requireAuth);
 function formatCustomer(c: typeof customersTable.$inferSelect) {
   return {
     id: c.id, email: c.email, firstName: c.firstName, lastName: c.lastName,
-    phone: c.phone, notes: c.notes, totalOrders: c.totalOrders,
+    phone: c.phone, notes: c.notes, tags: c.tags ?? [], totalOrders: c.totalOrders,
     totalSpent: parseFloat(c.totalSpent), createdAt: c.createdAt,
   };
 }
@@ -86,6 +86,7 @@ router.patch("/:id", async (req, res) => {
   if (d.lastName !== undefined) updates.lastName = d.lastName;
   if (d.phone !== undefined) updates.phone = d.phone;
   if (d.notes !== undefined) updates.notes = d.notes;
+  if ((req.body as any).tags !== undefined) updates.tags = (req.body as any).tags;
   const [c] = await db.update(customersTable).set(updates).where(eq(customersTable.id, req.params.id)).returning();
   res.json(formatCustomer(c));
 });

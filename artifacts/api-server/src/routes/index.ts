@@ -15,6 +15,7 @@ import returnsRouter from "./returns";
 import loyaltyRouter from "./loyalty";
 import segmentsRouter from "./segments";
 import campaignsRouter from "./campaigns";
+import ticketsRouter from "./tickets";
 
 const router: IRouter = Router();
 
@@ -34,5 +35,6 @@ router.use("/returns", returnsRouter);
 router.use("/loyalty", loyaltyRouter);
 router.use("/segments", segmentsRouter);
 router.use("/campaigns", campaignsRouter);
+router.use("/tickets", ticketsRouter);
 
 export default router;

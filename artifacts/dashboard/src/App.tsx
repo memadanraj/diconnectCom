@@ -27,6 +27,8 @@ import ReturnDetailPage from "@/pages/return-detail";
 import LoyaltyPage from "@/pages/loyalty";
 import SegmentsPage from "@/pages/segments";
 import CampaignsPage from "@/pages/campaigns";
+import TicketsPage from "@/pages/tickets";
+import TicketDetailPage from "@/pages/ticket-detail";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -63,6 +65,8 @@ function ProtectedRoutes() {
           <Route path="/loyalty" component={LoyaltyPage} />
           <Route path="/segments" component={SegmentsPage} />
           <Route path="/campaigns" component={CampaignsPage} />
+          <Route path="/tickets" component={TicketsPage} />
+          <Route path="/tickets/:id" component={({ params }) => <TicketDetailPage id={params.id} />} />
           <Route path="/settings" component={Settings} />
           <Route component={NotFound} />
         </Switch>

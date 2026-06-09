@@ -18,6 +18,7 @@ import {
   Trophy,
   Layers,
   Megaphone,
+  HeadphonesIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -49,6 +50,7 @@ const NAV_SECTIONS = [
       { href: "/loyalty", label: "Loyalty", icon: Trophy },
       { href: "/segments", label: "Segments", icon: Layers },
       { href: "/campaigns", label: "Campaigns", icon: Megaphone },
+      { href: "/tickets", label: "Support Tickets", icon: HeadphonesIcon },
       { href: "/settings", label: "Settings", icon: Settings },
     ],
   },
