@@ -57,6 +57,10 @@ export default function Login() {
           </p>
         </div>
 
+        <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+          <span className="font-semibold">Demo:</span> demo@commerce.os / demo1234
+        </div>
+
         <Card className="border-border/50 shadow-sm">
           <CardHeader>
             <CardTitle>Sign in</CardTitle>
