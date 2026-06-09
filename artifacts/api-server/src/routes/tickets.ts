@@ -180,7 +180,7 @@ router.post("/:id/messages", async (req, res) => {
   const [msg] = await db.insert(ticketMessagesTable).values({
     ticketId: req.params.id,
     senderType: senderType === "customer" ? "customer" : "staff",
-    senderId: req.user!.id,
+    senderId: req.user!.sub,
     body: body.trim(),
   }).returning();
 

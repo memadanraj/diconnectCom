@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { db, ordersTable, productsTable, orderItemsTable } from "@workspace/db";
+import { db, ordersTable, productsTable, orderItemsTable, customersTable } from "@workspace/db";
 import { eq, and, gte, sql, desc, inArray } from "drizzle-orm";
 import { requireAuth } from "../middlewares/auth";
 
@@ -25,6 +25,7 @@ router.get("/stats", async (req, res) => {
   const [totalProductsRow] = await db.select({ val: sql<number>`count(*)::int` }).from(productsTable).where(eq(productsTable.tenantId, tenantId));
   const [activeProductsRow] = await db.select({ val: sql<number>`count(*)::int` }).from(productsTable).where(and(eq(productsTable.tenantId, tenantId), eq(productsTable.status, "active")));
   const [pendingOrdersRow] = await db.select({ val: sql<number>`count(*)::int` }).from(ordersTable).where(and(eq(ordersTable.tenantId, tenantId), sql`status IN ('pending', 'confirmed')`));
+  const [totalCustomersRow] = await db.select({ val: sql<number>`count(*)::int` }).from(customersTable).where(eq(customersTable.tenantId, tenantId));
 
   const thisRevenue = parseFloat(thisMonthRevenueRow.val);
   const lastRevenue = parseFloat(lastMonthRevenueRow.val);
@@ -38,7 +39,7 @@ router.get("/stats", async (req, res) => {
     totalRevenue: parseFloat(totalRevenueRow.val),
     totalOrders: totalOrdersRow.val,
     totalProducts: totalProductsRow.val,
-    totalCustomers: 0,
+    totalCustomers: totalCustomersRow.val,
     revenueGrowth: Math.round(revenueGrowth * 10) / 10,
     ordersGrowth: Math.round(ordersGrowth * 10) / 10,
     pendingOrders: pendingOrdersRow.val,

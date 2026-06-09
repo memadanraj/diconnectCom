@@ -87,10 +87,10 @@ async function main() {
     }).returning();
     await db.insert(orderItemsTable).values({
       orderId: order.id,
-      tenantId: tenant.id,
       productId: p.id,
       productName: p.name,
       sku: p.sku ?? "",
+      imageUrl: p.imageUrl,
       unitPrice: p.price,
       quantity: i + 1,
       totalPrice: String(parseFloat(p.price) * (i + 1)),
