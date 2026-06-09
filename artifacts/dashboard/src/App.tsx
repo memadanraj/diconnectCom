@@ -31,6 +31,7 @@ import TicketsPage from "@/pages/tickets";
 import TicketDetailPage from "@/pages/ticket-detail";
 import BranchesPage from "@/pages/branches";
 import PosPage from "@/pages/pos";
+import PosTerminalPage from "@/pages/pos-terminal";
 import BillingPage from "@/pages/billing";
 import ThemesPage from "@/pages/themes";
 
@@ -49,36 +50,44 @@ const queryClient = new QueryClient({
 function ProtectedRoutes() {
   return (
     <AuthGuard>
-      <Layout>
-        <Switch>
-          <Route path="/dashboard" component={Dashboard} />
-          <Route path="/products" component={ProductsList} />
-          <Route path="/products/new" component={() => <ProductForm />} />
-          <Route path="/products/:id" component={({ params }) => <ProductForm id={params.id} />} />
-          <Route path="/categories" component={Categories} />
-          <Route path="/orders" component={OrdersList} />
-          <Route path="/orders/:id" component={({ params }) => <OrderDetail id={params.id} />} />
-          <Route path="/customers" component={CustomersPage} />
-          <Route path="/customers/:id" component={({ params }) => <CustomerDetailPage id={params.id} />} />
-          <Route path="/inventory" component={InventoryPage} />
-          <Route path="/shipments" component={ShipmentsPage} />
-          <Route path="/shipments/:id" component={({ params }) => <ShipmentDetailPage id={params.id} />} />
-          <Route path="/discounts" component={DiscountsPage} />
-          <Route path="/returns" component={ReturnsPage} />
-          <Route path="/returns/:id" component={({ params }) => <ReturnDetailPage id={params.id} />} />
-          <Route path="/loyalty" component={LoyaltyPage} />
-          <Route path="/segments" component={SegmentsPage} />
-          <Route path="/campaigns" component={CampaignsPage} />
-          <Route path="/tickets" component={TicketsPage} />
-          <Route path="/tickets/:id" component={({ params }) => <TicketDetailPage id={params.id} />} />
-          <Route path="/branches" component={BranchesPage} />
-          <Route path="/pos" component={PosPage} />
-          <Route path="/billing" component={BillingPage} />
-          <Route path="/themes" component={ThemesPage} />
-          <Route path="/settings" component={Settings} />
-          <Route component={NotFound} />
-        </Switch>
-      </Layout>
+      <Switch>
+        {/* Full-screen pages — no sidebar layout */}
+        <Route path="/pos/terminal" component={PosTerminalPage} />
+
+        {/* Standard sidebar layout */}
+        <Route>
+          <Layout>
+            <Switch>
+              <Route path="/dashboard" component={Dashboard} />
+              <Route path="/products" component={ProductsList} />
+              <Route path="/products/new" component={() => <ProductForm />} />
+              <Route path="/products/:id" component={({ params }) => <ProductForm id={params.id} />} />
+              <Route path="/categories" component={Categories} />
+              <Route path="/orders" component={OrdersList} />
+              <Route path="/orders/:id" component={({ params }) => <OrderDetail id={params.id} />} />
+              <Route path="/customers" component={CustomersPage} />
+              <Route path="/customers/:id" component={({ params }) => <CustomerDetailPage id={params.id} />} />
+              <Route path="/inventory" component={InventoryPage} />
+              <Route path="/shipments" component={ShipmentsPage} />
+              <Route path="/shipments/:id" component={({ params }) => <ShipmentDetailPage id={params.id} />} />
+              <Route path="/discounts" component={DiscountsPage} />
+              <Route path="/returns" component={ReturnsPage} />
+              <Route path="/returns/:id" component={({ params }) => <ReturnDetailPage id={params.id} />} />
+              <Route path="/loyalty" component={LoyaltyPage} />
+              <Route path="/segments" component={SegmentsPage} />
+              <Route path="/campaigns" component={CampaignsPage} />
+              <Route path="/tickets" component={TicketsPage} />
+              <Route path="/tickets/:id" component={({ params }) => <TicketDetailPage id={params.id} />} />
+              <Route path="/branches" component={BranchesPage} />
+              <Route path="/pos" component={PosPage} />
+              <Route path="/billing" component={BillingPage} />
+              <Route path="/themes" component={ThemesPage} />
+              <Route path="/settings" component={Settings} />
+              <Route component={NotFound} />
+            </Switch>
+          </Layout>
+        </Route>
+      </Switch>
     </AuthGuard>
   );
 }

@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { Link } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,7 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Monitor, ShoppingBag, TrendingUp, DollarSign, Lock, Unlock, XCircle } from "lucide-react";
+import { Plus, Monitor, ShoppingBag, TrendingUp, DollarSign, Lock, Unlock, XCircle, ExternalLink } from "lucide-react";
 
 function apiFetch(url: string, init?: RequestInit) {
   const token = localStorage.getItem("commerce_token");
@@ -149,8 +150,12 @@ export default function PosPage() {
           <p className="text-sm text-muted-foreground">Manage registers, record sales, and track cash</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={() => setShowSale(true)} disabled={openRegs.length === 0}><ShoppingBag className="mr-2 h-4 w-4" />Record Sale</Button>
-          <Button onClick={() => setShowNewRegister(true)}><Plus className="mr-2 h-4 w-4" />New Register</Button>
+          <Link href="/pos/terminal">
+            <Button className="gap-2 bg-green-600 hover:bg-green-700 text-white">
+              <ExternalLink className="h-4 w-4" />Launch Terminal
+            </Button>
+          </Link>
+          <Button variant="outline" onClick={() => setShowNewRegister(true)}><Plus className="mr-2 h-4 w-4" />New Register</Button>
         </div>
       </div>
 
