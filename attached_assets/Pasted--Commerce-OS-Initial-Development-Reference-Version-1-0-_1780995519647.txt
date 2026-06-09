@@ -1,0 +1,150 @@
+# Commerce OS — Initial Development Reference
+
+> Version 1.0 · SaaS Commerce Platform · Shopify + POS + CRM + Analytics
+
+---
+
+## Table of Contents
+
+1. [Project Overview](#1-project-overview)
+2. [Architecture Overview](#2-architecture-overview)
+3. [Tenant & Multi-Tenancy Model](#3-tenant--multi-tenancy-model)
+4. [User Roles & RBAC](#4-user-roles--rbac)
+5. [Microservices Catalogue](#5-microservices-catalogue)
+6. [Database Design](#6-database-design)
+7. [API Design](#7-api-design)
+8. [API Gateway Design](#8-api-gateway-design)
+9. [Event-Driven Architecture (Kafka)](#9-event-driven-architecture-kafka)
+10. [Order Lifecycle](#10-order-lifecycle)
+11. [Inventory & Warehouse Model](#11-inventory--warehouse-model)
+12. [Payment Gateway Integration](#12-payment-gateway-integration)
+13. [POS Offline Sync Strategy](#13-pos-offline-sync-strategy)
+14. [Store Builder Architecture](#14-store-builder-architecture)
+15. [Multi-Tenancy DB Isolation](#15-multi-tenancy-db-isolation)
+16. [Observability Stack](#16-observability-stack)
+17. [CI/CD Pipeline](#17-cicd-pipeline)
+18. [Security Requirements](#18-security-requirements)
+19. [Infrastructure & Deployment](#19-infrastructure--deployment)
+20. [Frontend Applications](#20-frontend-applications)
+21. [Phased Development Plan](#21-phased-development-plan)
+22. [Project Structure](#22-project-structure)
+23. [Non-Functional Requirements](#23-non-functional-requirements)
+24. [Development Conventions](#24-development-conventions)
+
+---
+
+## 1. Project Overview
+
+### Vision
+
+A multi-tenant SaaS commerce platform enabling merchants to:
+
+- Create and manage online stores
+- Manage products, inventory, and orders
+- Accept payments (local + global gateways)
+- Run POS systems (offline-first, Flutter)
+- Manage multiple branches and warehouses
+- Run marketing campaigns and loyalty programs
+- Manage customers (CRM)
+- Track analytics and KPIs
+- Connect logistics providers
+
+**Equivalent to:** Shopify + POS + Inventory + CRM + Marketing + Logistics + Analytics
+
+### Business Model
+
+| Revenue Source | Details |
+|---|---|
+| Subscription plans | Starter, Growth, Business, Enterprise |
+| Transaction fees | Percentage per order |
+| SMS charges | Usage-based billing |
+| Enterprise services | Custom development |
+| Setup charges | Store onboarding |
+| POS hardware | Scanner, printer, cash drawer |
+
+---
+
+## 2. Architecture Overview
+
+```
+Internet
+  ↓
+Cloudflare (CDN, DDoS, WAF)
+  ↓
+Load Balancer (health checks, routing)
+  ↓
+API Gateway (auth, rate limiting, tenant resolution, routing)
+  ↓
+Microservices Layer (16 services)
+  ↓
+Database Layer       Storage Layer        Analytics Layer
+(PostgreSQL, Redis)  (MinIO, Elastic)     (Kafka, aggregations)
+```
+
+### Technology Stack
+
+| Layer | Technology |
+|---|---|
+| API Gateway | Kong (or custom NestJS) |
+| Microservices | Node.js / NestJS |
+| Databases | PostgreSQL (primary), Redis (cache/sessions) |
+| Message bus | Apache Kafka |
+| Search | Elasticsearch |
+| File storage | MinIO → Cloudflare CDN |
+| Container orchestration | Kubernetes (AWS EKS) |
+| Infrastructure | Terraform, Helm |
+| CI/CD | GitHub Actions |
+| Observability | Prometheus, Grafana, Loki, Jaeger, OpenTelemetry |
+
+---
+
+## 3. Tenant & Multi-Tenancy Model
+
+Every merchant is a **Tenant**. All data is scoped by `tenant_id`.
+
+```
+Tenant
+├── Stores          (online storefronts, custom domains)
+├── Warehouses      (stock locations)
+├── Branches        (physical locations linked to warehouses)
+├── Users           (RBAC, 7 roles)
+├── Customers       (CRM, loyalty, segments)
+├── Orders          (9-stage lifecycle)
+├── Inventory       (6 stock states per variant per warehouse)
+├── Themes          (store builder JSON, draft/published)
+└── Domains         (custom per store, resolved via Host header)
+```
+
+### Isolation Strategy
+
+- **Phase 1–5:** Shared tables with `tenant_id` column + PostgreSQL Row Level Security (RLS)
+- **Enterprise tier:** Schema-per-tenant (`search_path` switching)
+- **White-label / Phase 6:** Database-per-tenant (dedicated RDS instance)
+
+### RLS Enforcement (Shared Tables)
+
+```sql
+-- Enable on every table
+ALTER TABLE products ENABLE ROW LEVEL SECURITY;
+
+-- Policy
+CREATE POLICY tenant_isolation ON products
+  USING (tenant_id = current_setting('app.tenant_id')::uuid);
+
+-- Set at start of every transaction (via common-library middleware)
+SET LOCAL app.tenant_id = '<uuid-from-jwt>';
+```
+
+**The `common-library` middleware must inject `tenant_id` from JWT on every request. No microservice queries without it.**
+
+---
+
+## 4. User Roles & RBAC
+
+| Role | Scope | Description |
+|---|---|---|
+| `SUPER_ADMIN` | Platform | Anthropic/internal ops, full access |
+| `TENANT_OWNER` | Tenant | Full access to own tenant |
+| `MANAGER` | Tenant | Orders, inventory, staff, reports |
+| `STAFF` | Store/Branch | POS, orders, limited product view |
+| `CUSTOMER` | Storefront | Own or...
