@@ -16,6 +16,10 @@ import loyaltyRouter from "./loyalty";
 import segmentsRouter from "./segments";
 import campaignsRouter from "./campaigns";
 import ticketsRouter from "./tickets";
+import branchesRouter from "./branches";
+import posRouter from "./pos";
+import billingRouter from "./billing";
+import themesRouter from "./themes";
 
 const router: IRouter = Router();
 
@@ -36,5 +40,9 @@ router.use("/loyalty", loyaltyRouter);
 router.use("/segments", segmentsRouter);
 router.use("/campaigns", campaignsRouter);
 router.use("/tickets", ticketsRouter);
+router.use("/branches", branchesRouter);
+router.use("/pos", posRouter);
+router.use("/billing", billingRouter);
+router.use("/themes", themesRouter);
 
 export default router;

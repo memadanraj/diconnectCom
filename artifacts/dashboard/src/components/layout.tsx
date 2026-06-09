@@ -19,6 +19,10 @@ import {
   Layers,
   Megaphone,
   HeadphonesIcon,
+  Building2,
+  Monitor,
+  CreditCard,
+  Palette,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -41,6 +45,8 @@ const NAV_SECTIONS = [
       { href: "/inventory", label: "Inventory", icon: Warehouse },
       { href: "/shipments", label: "Shipments", icon: Truck },
       { href: "/returns", label: "Returns", icon: RotateCcw },
+      { href: "/branches", label: "Branches", icon: Building2 },
+      { href: "/pos", label: "Point of Sale", icon: Monitor },
     ],
   },
   {
@@ -51,6 +57,13 @@ const NAV_SECTIONS = [
       { href: "/segments", label: "Segments", icon: Layers },
       { href: "/campaigns", label: "Campaigns", icon: Megaphone },
       { href: "/tickets", label: "Support Tickets", icon: HeadphonesIcon },
+      { href: "/themes", label: "Themes", icon: Palette },
+    ],
+  },
+  {
+    label: "Account",
+    items: [
+      { href: "/billing", label: "Billing", icon: CreditCard },
       { href: "/settings", label: "Settings", icon: Settings },
     ],
   },

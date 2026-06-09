@@ -13,3 +13,7 @@ export * from "./loyalty";
 export * from "./segments";
 export * from "./campaigns";
 export * from "./tickets";
+export * from "./branches";
+export * from "./pos";
+export * from "./billing";
+export * from "./themes";
