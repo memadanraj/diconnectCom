@@ -637,6 +637,8 @@ export interface Shipment {
   /** @nullable */
   orderNumber?: string | null;
   /** @nullable */
+  customerName?: string | null;
+  /** @nullable */
   trackingNumber?: string | null;
   /** @nullable */
   carrier?: string | null;

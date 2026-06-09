@@ -1,1 +1,4 @@
 - [Commerce OS Phase 1](commerce-os-phase1.md) — multi-tenant merchant dashboard; key schema/auth/numeric parsing patterns
+- [Orval barrel collision fix](orval-barrel-collision.md) — codegen script must rewrite lib/api-zod/src/index.ts after Orval runs; never export ./generated/types
+- [Drizzle inArray vs ANY](drizzle-inarray.md) — use inArray(col, ids) not sql`= ANY(${ids})`; raw ANY() fails at runtime
+- [TanStack Query v5 auth retry](tanstack-query-retry.md) — configure QueryClient retry as a function skipping status 401 to prevent auth-spinner hang

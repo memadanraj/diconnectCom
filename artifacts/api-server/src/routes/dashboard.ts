@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db, ordersTable, productsTable, orderItemsTable } from "@workspace/db";
-import { eq, and, gte, sql, desc } from "drizzle-orm";
+import { eq, and, gte, sql, desc, inArray } from "drizzle-orm";
 import { requireAuth } from "../middlewares/auth";
 
 const router = Router();
@@ -54,7 +54,7 @@ router.get("/recent-orders", async (req, res) => {
 
   const orderIds = rows.map((o) => o.id);
   const itemCounts = orderIds.length
-    ? await db.select({ orderId: orderItemsTable.orderId, count: sql<number>`count(*)::int` }).from(orderItemsTable).where(sql`${orderItemsTable.orderId} = ANY(${orderIds})`).groupBy(orderItemsTable.orderId)
+    ? await db.select({ orderId: orderItemsTable.orderId, count: sql<number>`count(*)::int` }).from(orderItemsTable).where(inArray(orderItemsTable.orderId, orderIds)).groupBy(orderItemsTable.orderId)
     : [];
   const countMap = new Map(itemCounts.map((c) => [c.orderId, c.count]));
 

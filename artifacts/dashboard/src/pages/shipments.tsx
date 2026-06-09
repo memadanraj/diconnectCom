@@ -127,7 +127,7 @@ export default function ShipmentsPage() {
                     </span>
                   </Link>
                 </TableCell>
-                <TableCell className="text-sm text-muted-foreground">{(s as any).customerName ?? "—"}</TableCell>
+                <TableCell className="text-sm text-muted-foreground">{s.customerName ?? "—"}</TableCell>
                 <TableCell>
                   {s.trackingNumber ? (
                     <span className="font-mono text-sm">{s.trackingNumber}</span>
