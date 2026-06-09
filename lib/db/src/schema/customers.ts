@@ -11,6 +11,7 @@ export const customersTable = pgTable("customers", {
   lastName: text("last_name"),
   phone: text("phone"),
   notes: text("notes"),
+  tags: text("tags").array().notNull().default([]),
   totalOrders: integer("total_orders").notNull().default(0),
   totalSpent: numeric("total_spent", { precision: 12, scale: 2 }).notNull().default("0"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

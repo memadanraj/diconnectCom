@@ -12,6 +12,9 @@ import customersRouter from "./customers";
 import shipmentsRouter from "./shipments";
 import discountsRouter from "./discounts";
 import returnsRouter from "./returns";
+import loyaltyRouter from "./loyalty";
+import segmentsRouter from "./segments";
+import campaignsRouter from "./campaigns";
 
 const router: IRouter = Router();
 
@@ -28,5 +31,8 @@ router.use("/customers", customersRouter);
 router.use("/shipments", shipmentsRouter);
 router.use("/discounts", discountsRouter);
 router.use("/returns", returnsRouter);
+router.use("/loyalty", loyaltyRouter);
+router.use("/segments", segmentsRouter);
+router.use("/campaigns", campaignsRouter);
 
 export default router;

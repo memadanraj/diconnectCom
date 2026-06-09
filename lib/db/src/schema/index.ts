@@ -9,3 +9,6 @@ export * from "./customers";
 export * from "./shipments";
 export * from "./discounts";
 export * from "./returns";
+export * from "./loyalty";
+export * from "./segments";
+export * from "./campaigns";

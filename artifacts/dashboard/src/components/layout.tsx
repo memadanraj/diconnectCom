@@ -15,6 +15,9 @@ import {
   Truck,
   Tag,
   RotateCcw,
+  Trophy,
+  Layers,
+  Megaphone,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -43,6 +46,9 @@ const NAV_SECTIONS = [
     label: "Store",
     items: [
       { href: "/discounts", label: "Discounts", icon: Tag },
+      { href: "/loyalty", label: "Loyalty", icon: Trophy },
+      { href: "/segments", label: "Segments", icon: Layers },
+      { href: "/campaigns", label: "Campaigns", icon: Megaphone },
       { href: "/settings", label: "Settings", icon: Settings },
     ],
   },

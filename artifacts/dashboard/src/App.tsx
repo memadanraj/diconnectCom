@@ -24,6 +24,9 @@ import ShipmentDetailPage from "@/pages/shipment-detail";
 import DiscountsPage from "@/pages/discounts";
 import ReturnsPage from "@/pages/returns";
 import ReturnDetailPage from "@/pages/return-detail";
+import LoyaltyPage from "@/pages/loyalty";
+import SegmentsPage from "@/pages/segments";
+import CampaignsPage from "@/pages/campaigns";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -57,6 +60,9 @@ function ProtectedRoutes() {
           <Route path="/discounts" component={DiscountsPage} />
           <Route path="/returns" component={ReturnsPage} />
           <Route path="/returns/:id" component={({ params }) => <ReturnDetailPage id={params.id} />} />
+          <Route path="/loyalty" component={LoyaltyPage} />
+          <Route path="/segments" component={SegmentsPage} />
+          <Route path="/campaigns" component={CampaignsPage} />
           <Route path="/settings" component={Settings} />
           <Route component={NotFound} />
         </Switch>

@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { db, ordersTable, orderItemsTable, productsTable } from "@workspace/db";
+import { db, ordersTable, orderItemsTable, productsTable, discountsTable, discountUsagesTable } from "@workspace/db";
 import { eq, and, ilike, or, sql, desc, inArray } from "drizzle-orm";
 import { requireAuth } from "../middlewares/auth";
 import { CreateOrderBody, UpdateOrderStatusBody } from "@workspace/api-zod";
@@ -65,15 +65,48 @@ router.post("/", async (req, res) => {
     return;
   }
   const d = parse.data;
+  const tenantId = req.user!.tenantId;
 
   const subtotal = d.items.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
-  const discount = d.discount ?? 0;
   const shippingFee = d.shippingFee ?? 0;
   const tax = 0;
+  let discount = d.discount ?? 0;
+  let appliedDiscountId: string | null = null;
+
+  if ((d as any).discountCode) {
+    const code = String((d as any).discountCode).toUpperCase().trim();
+    const [disc] = await db
+      .select()
+      .from(discountsTable)
+      .where(and(eq(discountsTable.tenantId, tenantId), eq(discountsTable.code, code)))
+      .limit(1);
+
+    if (disc && disc.isActive) {
+      const now = new Date();
+      const notStarted = disc.startsAt && disc.startsAt > now;
+      const expired = disc.expiresAt && disc.expiresAt < now;
+      const limitReached = disc.usageLimit !== null && disc.usageCount >= disc.usageLimit;
+      const belowMin = disc.minOrderAmount && subtotal < parseFloat(disc.minOrderAmount);
+
+      if (!notStarted && !expired && !limitReached && !belowMin) {
+        if (disc.type === "percentage") {
+          discount = (subtotal * parseFloat(disc.value)) / 100;
+        } else if (disc.type === "fixed") {
+          discount = parseFloat(disc.value);
+        }
+        if (disc.maxDiscountAmount) {
+          discount = Math.min(discount, parseFloat(disc.maxDiscountAmount));
+        }
+        discount = Math.min(discount, subtotal);
+        appliedDiscountId = disc.id;
+      }
+    }
+  }
+
   const total = subtotal - discount + shippingFee + tax;
 
   const [order] = await db.insert(ordersTable).values({
-    tenantId: req.user!.tenantId,
+    tenantId,
     orderNumber: generateOrderNumber(),
     status: "pending",
     customerName: d.customerName,
@@ -88,6 +121,19 @@ router.post("/", async (req, res) => {
     currency: d.currency ?? "NPR",
     notes: d.notes,
   }).returning();
+
+  if (appliedDiscountId) {
+    await db.insert(discountUsagesTable).values({
+      tenantId,
+      discountId: appliedDiscountId,
+      orderId: order.id,
+      discountAmount: String(discount),
+    });
+    await db
+      .update(discountsTable)
+      .set({ usageCount: sql`${discountsTable.usageCount} + 1` })
+      .where(eq(discountsTable.id, appliedDiscountId));
+  }
 
   for (const item of d.items) {
     const [product] = await db.select({ name: productsTable.name, sku: productsTable.sku, imageUrl: productsTable.imageUrl }).from(productsTable).where(eq(productsTable.id, item.productId)).limit(1);
