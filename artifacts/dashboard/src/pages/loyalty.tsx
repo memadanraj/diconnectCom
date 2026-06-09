@@ -64,9 +64,12 @@ export default function LoyaltyPage() {
     setIsLoading(true);
     try {
       const res = await apiFetch("/api/loyalty?page=1&perPage=50");
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json = await res.json();
       setAccounts(json.data ?? []);
       setMeta(json.meta ?? null);
+    } catch {
+      // silently ignore — user may not be logged in yet
     } finally {
       setIsLoading(false);
     }

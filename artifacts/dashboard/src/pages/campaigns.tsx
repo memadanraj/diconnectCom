@@ -84,10 +84,13 @@ export default function CampaignsPage() {
         apiFetch("/api/segments?perPage=100"),
         apiFetch("/api/discounts?perPage=100&isActive=true"),
       ]);
+      if (!cRes.ok || !sRes.ok || !dRes.ok) throw new Error("Failed to load");
       const [cJson, sJson, dJson] = await Promise.all([cRes.json(), sRes.json(), dRes.json()]);
       setCampaigns(cJson.data ?? []);
       setSegments(sJson.data ?? []);
       setDiscounts(dJson.data ?? []);
+    } catch {
+      // silently ignore — user may not be logged in yet
     } finally {
       setIsLoading(false);
     }

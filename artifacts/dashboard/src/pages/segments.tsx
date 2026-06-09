@@ -54,8 +54,11 @@ export default function SegmentsPage() {
     setIsLoading(true);
     try {
       const res = await apiFetch("/api/segments?perPage=50");
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json = await res.json();
       setSegments(json.data ?? []);
+    } catch {
+      // silently ignore — user may not be logged in yet
     } finally {
       setIsLoading(false);
     }
